@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Công cụ Tính Lãi Suất Premium</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="logo">
+                <i class="fa-solid fa-chart-line"></i>
+                <span>FinCalc</span>
+            </div>
+            <ul class="nav-links">
+                <li class="active" data-tab="tab-compound">
+                    <i class="fa-solid fa-seedling"></i>
+                    <span>Lãi kép cơ bản</span>
+                </li>
+                <li data-tab="tab-investment">
+                    <i class="fa-solid fa-piggy-bank"></i>
+                    <span>Đầu tư tích lũy</span>
+                </li>
+                <li data-tab="tab-loan">
+                    <i class="fa-solid fa-hand-holding-dollar"></i>
+                    <span>Tính lãi vay</span>
+                </li>
+                <li data-tab="tab-trading">
+                    <i class="fa-solid fa-arrow-trend-up"></i>
+                    <span>Trading System</span>
+                </li>
+            </ul>
+            <div class="footer-info">
+                © 2025 FinCalc
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+
+            <!-- Tab 1: Basic Compound Interest -->
+            <section id="tab-compound" class="tab-pane active">
+                <header>
+                    <h1>Lãi kép cơ bản</h1>
+                    <p>Tính toán lợi nhuận khoản đầu tư của bạn qua thời gian</p>
+                </header>
+                <div class="calculator-grid">
+                    <div class="input-card">
+                        <div class="form-group">
+                            <label>Số tiền gốc ban đầu (VND)</label>
+                            <div class="input-wrapper">
+                                <input type="text" id="c1-principal" class="format-currency"
+                                    placeholder="VD: 100,000,000">
+                                <i class="fa-solid fa-money-bill-wave"></i>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Lãi suất (%/năm)</label>
+                            <div class="input-wrapper">
+                                <input type="number" id="c1-rate" step="0.1" placeholder="VD: 7.5">
+                                <i class="fa-solid fa-percent"></i>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Thời gian gửi (Năm)</label>
+                            <div class="input-wrapper">
+                                <input type="number" id="c1-years" placeholder="VD: 5">
+                                <i class="fa-regular fa-calendar-days"></i>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Kỳ hạn ghép lãi</label>
+                            <div class="select-wrapper">
+                                <select id="c1-frequency">
+                                    <option value="12">Hàng tháng</option>
+                                    <option value="4">Hàng quý</option>
+                                    <option value="1">Hàng năm</option>
+                                </select>
+                                <i class="fa-solid fa-rotate"></i>
+                            </div>
+                        </div>
+                        <button class="btn-calculate" onclick="calculateCompound()">
+                            Tính ngay <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                        <!-- Formula Display -->
+                        <div class="formula-box" id="c1-formula">
+                            <!-- JS will populate -->
+                        </div>
+                    </div>
+
+                    <div class="result-card glass-effect">
+                        <div class="result-summary">
+                            <div class="summary-item">
+                                <span>Tổng gốc:</span>
+                                <h3 id="c1-total-principal">0 ₫</h3>
+                            </div>
+                            <div class="summary-item highlight">
+                                <span>Tổng lãi:</span>
+                                <h3 id="c1-total-interest">0 ₫</h3>
+                            </div>
+                            <div class="summary-item total">
+                                <span>Tổng nhận được:</span>
+                                <h2 id="c1-final-balance">0 ₫</h2>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="chart-compound"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 2: Periodic Investment -->
+            <section id="tab-investment" class="tab-pane">
+                <header>
+                    <h1>Đầu tư tích lũy</h1>
+                    <p>Tính toán sức mạnh của việc đầu tư đều đặn</p>
+                </header>
+                <div class="calculator-grid">
+                    <div class="input-card">
+                        <div class="form-group">
+                            <label>Vốn ban đầu (VND)</label>
+                            <div class="input-wrapper">
+                                <input type="text" id="c2-principal" class="format-currency"
+                                    placeholder="VD: 50,000,000">
+                                <i class="fa-solid fa-money-bill-wave"></i>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Số tiền góp thêm mỗi tháng (VND)</label>
+                            <div class="input-wrapper">
+                                <input type="text" id="c2-contribution" class="format-currency"
+                                    placeholder="VD: 5,000,000">
+                                <i class="fa-solid fa-coins"></i>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Lãi suất dự kiến (%/năm)</label>
+                            <div class="input-wrapper">
+                                <input type="number" id="c2-rate" step="0.1" placeholder="VD: 10">
+                                <i class="fa-solid fa-percent"></i>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Thời gian đầu tư (Năm)</label>
+                            <div class="input-wrapper">
+                                <input type="number" id="c2-years" placeholder="VD: 20">
+                                <i class="fa-regular fa-calendar-days"></i>
+                            </div>
+                        </div>
+                        <button class="btn-calculate" onclick="calculateInvestment()">
+                            Tính toán <i class="fa-solid fa-calculator"></i>
+                        </button>
+                        <!-- Formula Display -->
+                        <div class="formula-box" id="c2-formula">
+                            <!-- JS will populate -->
+                        </div>
+                    </div>
+
+                    <div class="result-card glass-effect">
+                        <div class="result-summary">
+                            <div class="summary-item">
+                                <span>Tổng vốn góp:</span>
+                                <h3 id="c2-total-principal">0 ₫</h3>
+                            </div>
+                            <div class="summary-item highlight">
+                                <span>Tiền lãi sinh ra:</span>
+                                <h3 id="c2-total-interest">0 ₫</h3>
+                            </div>
+                            <div class="summary-item total">
+                                <span>Tổng giá trị:</span>
+                                <h2 id="c2-final-balance">0 ₫</h2>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="chart-investment"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 3: Loan Calculator -->
+            <section id="tab-loan" class="tab-pane">
+                <header>
+                    <h1>Tính lịch trả nợ</h1>
+                    <p>Lập kế hoạch vay vốn với lãi suất ưu đãi & thả nổi</p>
+                </header>
+                <div class="calculator-grid">
+                    <div class="input-card">
+                        <div class="form-group">
+                            <label>Số tiền vay (VND)</label>
+                            <div class="input-wrapper">
+                                <input type="text" id="c3-principal" class="format-currency"
+                                    placeholder="VD: 2,000,000,000">
+                                <i class="fa-solid fa-house"></i>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Thời hạn vay (Năm)</label>
+                            <div class="input-wrapper">
+                                <input type="number" id="c3-years" placeholder="VD: 20">
+                                <i class="fa-regular fa-clock"></i>
+                            </div>
+                        </div>
+                        <div class="form-group-row">
+                            <div class="form-group half">
+                                <label>Lãi ưu đãi (%/năm)</label>
+                                <input type="number" id="c3-rate1" step="0.1" placeholder="VD: 6.5">
+                            </div>
+                            <div class="form-group half">
+                                <label>Trong (Tháng)</label>
+                                <input type="number" id="c3-period1" placeholder="VD: 12">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Lãi suất thả nổi sau ưu đãi (%/năm)</label>
+                            <div class="input-wrapper">
+                                <input type="number" id="c3-rate2" step="0.1" placeholder="VD: 10.5">
+                                <i class="fa-solid fa-arrow-trend-up"></i>
+                            </div>
+                        </div>
+                        <button class="btn-calculate" onclick="calculateLoan()">
+                            Xem lịch trả nợ <i class="fa-solid fa-list-check"></i>
+                        </button>
+                        <!-- Formula Display -->
+                        <div class="formula-box" id="c3-formula">
+                            <!-- JS will populate -->
+                        </div>
+                    </div>
+
+                    <div class="result-card glass-effect" style="overflow: hidden;">
+                        <div class="result-summary">
+                            <div class="summary-item">
+                                <span>Tổng gốc + lãi phải trả:</span>
+                                <h2 id="c3-total-paid">0 ₫</h2>
+                            </div>
+                            <div class="summary-item">
+                                <span>Tổng lãi phải trả:</span>
+                                <h3 id="c3-total-interest">0 ₫</h3>
+                            </div>
+                        </div>
+                        <div class="table-container">
+                            <table class="schedule-table">
+                                <thead>
+                                    <tr>
+                                        <th>Tháng</th>
+                                        <th>Dư nợ đầu kỳ</th>
+                                        <th>Trả gốc</th>
+                                        <th>Trả lãi</th>
+                                        <th>Tổng trả</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="c3-schedule-body">
+                                    <!-- JS will populate -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 4: Trading System -->
+            <section id="tab-trading" class="tab-pane">
+                <header>
+                    <h1>Hệ thống Trading</h1>
+                    <p>Mô phỏng tái đầu tư lợi nhuận để mở rộng quy mô tài khoản</p>
+                </header>
+                <div class="calculator-grid">
+                    <div class="input-card">
+                        <div class="form-group">
+                            <label>Số account ban đầu</label>
+                            <div class="input-wrapper">
+                                <input type="number" id="c4-accounts" placeholder="VD: 20">
+                                <i class="fa-solid fa-users"></i>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Vốn mỗi account (USD)</label>
+                            <div class="input-wrapper">
+                                <input type="text" id="c4-capital" class="format-currency" placeholder="VD: 500">
+                                <i class="fa-solid fa-dollar-sign"></i>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Lợi nhuận ngày (%/vốn)</label>
+                            <div class="input-wrapper">
+                                <input type="number" id="c4-rate" step="0.1" placeholder="VD: 1">
+                                <i class="fa-solid fa-percent"></i>
+                            </div>
+                        </div>
+                        <div class="form-group-row">
+                            <div class="form-group half">
+                                <label>Số ngày trade/tháng</label>
+                                <input type="number" id="c4-days" placeholder="VD: 15">
+                            </div>
+                            <div class="form-group half">
+                                <label>Thời gian (Tháng)</label>
+                                <input type="number" id="c4-months" placeholder="VD: 12">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Tỉ lệ rút lãi/tháng (%)</label>
+                            <div class="input-wrapper">
+                                <input type="number" id="c4-withdraw-rate" placeholder="VD: 50 (Rút 50%)">
+                                <i class="fa-solid fa-money-bill-transfer"></i>
+                            </div>
+                        </div>
+
+                        <button class="btn-calculate" onclick="calculateTrading()">
+                            Mô phỏng <i class="fa-solid fa-rocket"></i>
+                        </button>
+                    </div>
+
+                    <div class="result-card glass-effect">
+                        <div class="result-summary">
+                            <div class="summary-item">
+                                <span>Tổng số Accounts:</span>
+                                <h2 id="c4-total-accounts">0</h2>
+                            </div>
+                            <div class="summary-item highlight">
+                                <span>Thời gian X2 vốn:</span>
+                                <h3 id="c4-x2-time">--</h3>
+                            </div>
+                            <div class="summary-item">
+                                <span>Net Worth cuôi kỳ:</span>
+                                <h3 id="c4-net-worth">0 $</h3>
+                            </div>
+                            <div class="summary-item highlight">
+                                <span>Tổng tiền đã rút:</span>
+                                <h3 id="c4-total-withdrawn">0 $</h3>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="chart-trading"></canvas>
+                        </div>
+                        <!-- Log Display -->
+                        <div class="formula-box visible" id="c4-log"
+                            style="margin-top: 1rem; height: 150px; overflow-y: auto;">
+                            <!-- Simulation Log -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+    <script src="script.js"></script>
+</body>
+
+</html>
