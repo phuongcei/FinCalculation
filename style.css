@@ -12,6 +12,87 @@
     --glass-border: rgba(255, 255, 255, 0.1);
 }
 
+/* Light Mode Overrides */
+body.light-mode {
+    --bg-dark: #f8fafc;
+    --bg-card: #ffffff;
+    --text-light: #0f172a;
+    --text-muted: #64748b;
+    --border-color: #cbd5e1;
+    --glass-bg: rgba(255, 255, 255, 0.85);
+    --glass-border: rgba(99, 102, 241, 0.15);
+}
+
+body.light-mode .main-content {
+    background: radial-gradient(circle at top right, #e2e8f0 0%, #f1f5f9 60%);
+}
+
+body.light-mode .schedule-table th {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--primary-dark);
+}
+
+body.light-mode .schedule-table tr:hover {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+/* Light Mode Input Overrides */
+body.light-mode .form-group input,
+body.light-mode .select-wrapper select {
+    background: #ffffff;
+    color: #0f172a;
+    border-color: #cbd5e1;
+}
+
+body.light-mode .form-group input::placeholder {
+    color: #94a3b8;
+}
+
+body.light-mode header h1 {
+    background: linear-gradient(to right, #4f46e5, #0f172a);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+body.light-mode .formula-box {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: #cbd5e1;
+    color: #334155;
+}
+
+body.light-mode .formula-math {
+    color: #0f172a;
+    font-weight: 600;
+}
+
+/* Theme Toggle Button */
+.theme-toggle-btn {
+    position: absolute;
+    top: 1.5rem;
+    right: 2rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    transition: all 0.3s ease;
+    z-index: 100;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.theme-toggle-btn:hover {
+    color: var(--primary-color);
+    background: var(--bg-dark);
+    transform: rotate(15deg) scale(1.05);
+}
+
 * {
     margin: 0;
     padding: 0;

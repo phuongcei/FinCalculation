@@ -39,10 +39,54 @@ tabs.forEach(tab => {
     });
 });
 
+
 // --- CHART INSTANCES ---
 let chartCompound = null;
 let chartInvestment = null;
 let chartTrading = null;
+
+// --- THEME TOGGLE LOGIC ---
+const themeToggleBtn = document.getElementById('theme-toggle');
+const body = document.body;
+const themeIcon = themeToggleBtn.querySelector('i');
+
+// Check saved theme from LocalStorage
+const savedTheme = localStorage.getItem('theme');
+if (savedTheme === 'light') {
+    enableLightMode();
+}
+
+themeToggleBtn.addEventListener('click', () => {
+    if (body.classList.contains('light-mode')) {
+        disableLightMode();
+    } else {
+        enableLightMode();
+    }
+});
+
+function enableLightMode() {
+    body.classList.add('light-mode');
+    themeIcon.className = 'fa-solid fa-moon'; // Force icon
+    localStorage.setItem('theme', 'light');
+
+    // Update chart colors if they exist
+    if (chartCompound) chartCompound.update();
+    if (chartInvestment) chartInvestment.update();
+    if (chartTrading) chartTrading.update();
+}
+
+function disableLightMode() {
+    body.classList.remove('light-mode');
+    themeIcon.className = 'fa-solid fa-sun'; // Force icon
+    localStorage.setItem('theme', 'dark');
+
+    if (chartCompound) chartCompound.update();
+    if (chartInvestment) chartInvestment.update();
+    if (chartTrading) chartTrading.update();
+}
+
+// --- CHART INSTANCES ---
+
 
 // ... [Existing displayFormula] ...
 
