@@ -111,6 +111,10 @@ function calculateTrading() {
     if (isNaN(withdrawRate)) withdrawRate = 0;
     withdrawRate = withdrawRate / 100;
 
+    // NEW: Monthly Added Accounts
+    let monthlyAdd = parseInt(document.getElementById('c4-monthly-add').value);
+    if (isNaN(monthlyAdd)) monthlyAdd = 0;
+
     let currentAccounts = initialAccounts;
     const totalDays = months * daysPerMonth;
     let cashPool = 0;
@@ -124,7 +128,7 @@ function calculateTrading() {
 
     let timeToX2 = null;
     let timeToBreakeven = null;
-    const initialTotalCapital = initialAccounts * capitalPerAccount;
+    let totalInvestedCapital = initialAccounts * capitalPerAccount;
 
     for (let day = 1; day <= totalDays; day++) {
         // Daily Profit Calculation
@@ -138,13 +142,14 @@ function calculateTrading() {
         monthlyWithdrawnAccumulator += withdrawAmount;
         totalWithdrawn += withdrawAmount;
 
-        // Check Breakeven Milestone (Total Withdrawn >= Initial Capital)
-        if (timeToBreakeven === null && totalWithdrawn >= initialTotalCapital) {
+        // Check Breakeven Milestone (Total Withdrawn >= Total Invested Capital so far)
+        // Note: We only mark the FIRST time it happens.
+        if (timeToBreakeven === null && totalWithdrawn >= totalInvestedCapital) {
             timeToBreakeven = day;
-            logHTML += `<div style="color: #3b82f6; margin-bottom: 5px;">Day ${day}: 💎 Hoàn vốn đầu tư! (Tổng rút: ${formatCurrency(totalWithdrawn)})</div>`;
+            logHTML += `<div style="color: #3b82f6; margin-bottom: 5px;">Day ${day}: 💎 Hoàn vốn đầu tư! (Tổng hoàn: ${formatCurrency(totalWithdrawn)} / Vốn: ${formatCurrency(totalInvestedCapital)})</div>`;
         }
 
-        // Check if we can open new account
+        // Check if we can open new account from profits
         let newAccountsToday = 0;
         while (cashPool >= capitalPerAccount) {
             cashPool -= capitalPerAccount;
@@ -153,6 +158,21 @@ function calculateTrading() {
         }
 
         const isMonthEnd = day % daysPerMonth === 0;
+        let monthlyAddedLog = '';
+
+        if (isMonthEnd) {
+            // Handle Monthly Add
+            // Logic moved OUTSIDE reporting block to ensure it affects state before reporting (optional) or stays consistent.
+            // Let's do it AFTER reporting this day's results?
+            // Actually, if we add now, the chart for "Day X" will show the new value.
+            // Let's Add FIRST so the End Month snapshot shows the new state.
+
+            if (monthlyAdd > 0) {
+                currentAccounts += monthlyAdd;
+                totalInvestedCapital += (monthlyAdd * capitalPerAccount);
+                monthlyAddedLog = `<div style="color: #8b5cf6; margin-bottom: 5px;">End Month: 📥 Nạp thêm ${monthlyAdd} account. (Tổng vốn: ${formatCurrency(totalInvestedCapital)})</div>`;
+            }
+        }
 
         // Record Data points
         if (day % 5 === 0 || newAccountsToday > 0 || isMonthEnd || day === totalDays) {
@@ -164,16 +184,22 @@ function calculateTrading() {
             // Note: Total Value Generated includes ALL withdrawn money (past + current month accumulator)
             const totalValueGenerated = currentEquity + totalWithdrawn;
 
-            // Check X2 Milestone
-            if (timeToX2 === null && totalValueGenerated >= initialTotalCapital * 2) {
+            // Check X2 Milestone: Total Value Generated >= 2 * Total Invested Capital
+            if (timeToX2 === null && totalValueGenerated >= totalInvestedCapital * 2) {
                 timeToX2 = day;
                 logHTML += `<div style="color: #10b981; margin-bottom: 5px;">Day ${day}: 🚀 Đạt X2 Vốn! (Tổng giá trị: ${formatCurrency(totalValueGenerated)})</div>`;
             }
 
             if (newAccountsToday > 0) {
-                logHTML += `<div style="margin-bottom: 5px;">Day ${day}: Mở thêm ${newAccountsToday} account. Tổng: ${currentAccounts}.</div>`;
+                logHTML += `<div style="margin-bottom: 5px;">Day ${day}: Mở thêm ${newAccountsToday} account từ lãi. Tổng: ${currentAccounts}.</div>`;
             }
 
+            if (monthlyAddedLog) {
+                logHTML += monthlyAddedLog;
+            }
+
+            // Note: monthlyWithdrawnAccumulator reset moved here to ensure we capture it before reset, 
+            // but we need to log it first.
             if (isMonthEnd && monthlyWithdrawnAccumulator > 0) {
                 const monthIndex = day / daysPerMonth;
                 logHTML += `<div style="color: #f43f5e; margin-bottom: 5px; font-weight:500;">End Month ${monthIndex}: 💸 Rút lãi ${formatCurrency(monthlyWithdrawnAccumulator)}</div>`;
@@ -181,6 +207,7 @@ function calculateTrading() {
             }
         }
     }
+
 
     // Update UI Results
     document.getElementById('c4-total-accounts').textContent = currentAccounts;

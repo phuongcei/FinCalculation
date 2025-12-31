@@ -289,9 +289,7 @@ header p {
     flex: 1;
 }
 
-.form-group.half input {
-    padding-left: 1rem;
-}
+
 
 .btn-calculate {
     width: 100%;

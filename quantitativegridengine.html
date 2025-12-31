@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XAUUSD Grid Strategy Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+
+        .xml-output {
+            font-family: 'Fira Code', monospace;
+            white-space: pre-wrap;
+        }
+
+        /* Custom Scrollbar */
+        .custom-scroll::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .custom-scroll::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+
+        .custom-scroll::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- Main Container -->
+    <div class="w-full max-w-[95rem] bg-slate-800 rounded-xl shadow-2xl border border-slate-700 overflow-hidden">
+
+        <!-- Header -->
+        <div class="bg-slate-900 p-6 border-b border-slate-700 flex items-center justify-between">
+            <div>
+                <h1 class="text-xl font-bold text-amber-400"><i class="fa-solid fa-chart-line mr-2"></i>Quantitative
+                    Grid Engine</h1>
+                <p class="text-slate-400 text-sm mt-1">XAUUSD | Auto-Range | Auto-Recovery | Multi-Column View</p>
+            </div>
+            <div class="bg-slate-800 px-3 py-1 rounded text-xs text-slate-400 border border-slate-700">
+                v2.9 Split View
+            </div>
+        </div>
+
+        <!-- content -->
+        <div class="p-6 grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+            <!-- Controls (Left Panel) -->
+            <div class="lg:col-span-1 space-y-4">
+
+                <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-600">
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Direction <span
+                            class="text-amber-400">*</span></label>
+                    <div class="relative">
+                        <select id="direction"
+                            class="w-full bg-slate-900 border border-slate-600 rounded px-2 py-2 text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition appearance-none">
+                            <option value="1">Buy (Long) - Counter Trend</option>
+                            <option value="-1">Sell (Short) - Counter Trend</option>
+                        </select>
+                        <div
+                            class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                            <i class="fa-solid fa-chevron-down text-xs"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-600">
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Start Lot <span
+                                class="text-red-400">*</span></label>
+                        <input type="number" id="startLot" value="0.01" step="0.01" min="0.01" placeholder="0.01"
+                            class="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition">
+                    </div>
+                    <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-600">
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Max Lot Size</label>
+                        <input type="number" id="maxLot" value="200" step="0.1"
+                            class="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-600">
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Start Price (USD)</label>
+                        <input type="number" id="startPrice" value="4000" step="0.1"
+                            class="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition"
+                            onchange="updateEndPriceDefault()">
+                    </div>
+                    <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-600">
+                        <label class="block text-xs font-medium text-slate-300 mb-1">End Price (USD)</label>
+                        <input type="number" id="endPrice" value="4100" step="0.1"
+                            class="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition">
+                        <p class="text-[10px] text-slate-500 mt-1">Grid Limit</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-600">
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Max Orders Cap</label>
+                        <input type="number" id="totalOrders" value="300" step="1" min="1"
+                            class="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition">
+                    </div>
+                    <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-600">
+                        <label class="block text-xs font-medium text-amber-300 mb-1">Step (Points)</label>
+                        <input type="number" id="stepPoints" value="0" step="10" min="0"
+                            class="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition">
+                        <p class="text-[10px] text-amber-400 mt-1">0 = Auto-Optimize</p>
+                    </div>
+                </div>
+
+                <!-- Dynamic Step & Multiplier Controls -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-600">
+                        <label class="block text-xs font-medium text-amber-300 mb-1">Multiplier</label>
+                        <input type="number" id="multiplier" value="1.5" step="0.01" min="0"
+                            class="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition">
+                        <p class="text-[10px] text-amber-400 mt-1">0 = Auto-Calc</p>
+                    </div>
+                    <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-600">
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Step Multiplier (k)</label>
+                        <input type="number" id="kStep" value="1.0" step="0.01" min="1.0"
+                            class="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition">
+                        <p class="text-[10px] text-slate-500 mt-1">Order # to apply k: <input id="kStepOrder"
+                                type="number" value="14" class="w-10 bg-transparent border-b text-center"></p>
+                    </div>
+                </div>
+
+                <!-- Recovery & Risk -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-600">
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Recovery (Points)</label>
+                        <input type="number" id="recoveryPoints" value="0" step="10" min="0"
+                            class="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition">
+                        <p class="text-[10px] text-amber-400 mt-1">0 = Auto-Optimize</p>
+                    </div>
+                    <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-600">
+                        <label class="block text-xs font-medium text-slate-300 mb-1">Leverage (1:X)</label>
+                        <input type="number" id="leverage" value="1000" step="100" min="1"
+                            class="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition">
+                    </div>
+                </div>
+
+                <!-- Max Loss Limit -->
+                <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-600">
+                    <label class="block text-xs font-medium text-red-400 mb-1">Max Float Loss Limit ($)</label>
+                    <input type="number" id="maxLossLimit" value="-100000" step="1000" max="0"
+                        class="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400 transition">
+                </div>
+
+                <!-- NEW: Split View Setting -->
+                <div class="bg-slate-700/50 p-3 rounded-lg border border-slate-600">
+                    <label class="block text-xs font-medium text-blue-300 mb-1">Max Rows / Column</label>
+                    <input type="number" id="maxRows" value="30" step="1" min="5"
+                        class="w-full bg-slate-900 border border-slate-600 rounded px-2 py-1 text-white text-sm focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition">
+                </div>
+
+                <button onclick="calculateStrategy()"
+                    class="w-full bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold py-3 rounded-lg shadow-lg transition transform active:scale-95 flex items-center justify-center text-sm">
+                    <i class="fa-solid fa-calculator mr-2"></i> Generate Plan
+                </button>
+
+            </div>
+
+            <!-- Output (Right Panel) -->
+            <div class="lg:col-span-3 flex flex-col h-[800px]">
+                <div class="flex items-center justify-between mb-2">
+                    <!-- Tabs -->
+                    <div class="flex space-x-2 bg-slate-900 p-1 rounded-lg border border-slate-700">
+                        <button onclick="switchView('table')" id="tab-table"
+                            class="px-3 py-1 rounded text-xs font-bold bg-slate-700 text-white transition">Table
+                            View</button>
+                        <button onclick="switchView('xml')" id="tab-xml"
+                            class="px-3 py-1 rounded text-xs font-bold text-slate-400 hover:text-white transition">XML
+                            Source</button>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex space-x-2">
+                        <button onclick="resetResults()"
+                            class="text-xs bg-slate-700 hover:bg-red-600 text-white px-3 py-1 rounded transition border border-slate-600"
+                            title="Clear Results">
+                            <i class="fa-solid fa-trash mr-1"></i> Clear
+                        </button>
+                        <button onclick="copyToClipboard()"
+                            class="text-xs bg-slate-700 hover:bg-slate-600 text-white px-3 py-1 rounded transition border border-slate-600"
+                            title="Copy XML to Clipboard">
+                            <i class="fa-regular fa-copy mr-1"></i> Copy XML
+                        </button>
+                    </div>
+                </div>
+
+                <div class="relative flex-grow bg-slate-950 rounded-lg border border-slate-700 overflow-hidden">
+
+                    <!-- Table View Container (Horizontally Scrollable) -->
+                    <div id="view-table" class="w-full h-full flex flex-col">
+                        <!-- Summary Header inside Table View -->
+                        <div id="table-summary"
+                            class="bg-slate-900 p-3 border-b border-slate-700 text-xs text-slate-400 grid grid-cols-2 md:grid-cols-4 gap-2 hidden sticky top-0 z-20">
+                            <div>Orders: <br><strong id="sum-orders" class="text-white text-sm">0</strong></div>
+                            <div>Multiplier: <br><strong id="sum-mult" class="text-amber-400 text-sm">0.00</strong>
+                            </div>
+                            <div>Total Volume: <br><strong id="sum-vol" class="text-white text-sm">0.00</strong></div>
+                            <div>Max Float Loss: <br><strong id="sum-loss" class="text-red-400 text-sm">0.00</strong>
+                            </div>
+                        </div>
+
+                        <div id="table-container" class="flex-grow overflow-auto custom-scroll p-4">
+                            <!-- Multi-Column Tables will be injected here -->
+                            <div class="h-full flex items-center justify-center text-slate-500">
+                                Enter range and click Generate.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- XML View -->
+                    <textarea id="output" readonly
+                        class="w-full h-full bg-transparent text-green-400 xml-output text-xs resize-none focus:outline-none p-4 hidden"
+                        placeholder="XML Output will appear here..."></textarea>
+
+                </div>
+
+                <!-- Status Bar -->
+                <div id="status-bar" class="mt-2 text-xs text-slate-500 h-4 truncate">
+                    Waiting for input...
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        let currentXML = "";
+        const CONTRACT_SIZE = 100; // XAUUSD Standard
+
+        function updateEndPriceDefault() {
+            const start = parseFloat(document.getElementById('startPrice').value) || 0;
+            const endInput = document.getElementById('endPrice');
+            const dir = parseInt(document.getElementById('direction').value);
+
+            if (endInput) {
+                if (dir === 1) endInput.value = start - 100;
+                else endInput.value = start + 100;
+            }
+        }
+
+        function switchView(view) {
+            const tableDiv = document.getElementById('view-table');
+            const xmlArea = document.getElementById('output');
+            const tabTable = document.getElementById('tab-table');
+            const tabXml = document.getElementById('tab-xml');
+
+            if (view === 'table') {
+                tableDiv.classList.remove('hidden');
+                xmlArea.classList.add('hidden');
+
+                tabTable.classList.add('bg-slate-700', 'text-white');
+                tabTable.classList.remove('text-slate-400');
+
+                tabXml.classList.remove('bg-slate-700', 'text-white');
+                tabXml.classList.add('text-slate-400');
+            } else {
+                tableDiv.classList.add('hidden');
+                xmlArea.classList.remove('hidden');
+
+                tabXml.classList.add('bg-slate-700', 'text-white');
+                tabXml.classList.remove('text-slate-400');
+
+                tabTable.classList.remove('bg-slate-700', 'text-white');
+                tabTable.classList.add('text-slate-400');
+            }
+        }
+
+        function resetResults() {
+            document.getElementById('output').value = '';
+            document.getElementById('table-container').innerHTML = '<div class="h-full flex items-center justify-center text-slate-500">Table Cleared. Ready for new calculation.</div>';
+            document.getElementById('table-summary').classList.add('hidden');
+            const statusBar = document.getElementById('status-bar');
+            statusBar.textContent = "Waiting for input...";
+            statusBar.className = "mt-2 text-xs text-slate-500 h-4 truncate";
+            currentXML = "";
+        }
+
+        function calculateStrategy() {
+            // Get Inputs
+            const direction = parseInt(document.getElementById('direction').value);
+            const startLotInput = document.getElementById('startLot').value;
+            const maxLotInput = document.getElementById('maxLot').value;
+            const startPriceInput = document.getElementById('startPrice').value;
+            const endPriceInput = document.getElementById('endPrice').value;
+            const leverageInput = document.getElementById('leverage').value;
+            const maxOrdersInput = document.getElementById('totalOrders').value;
+            const stepPointsInput = document.getElementById('stepPoints').value;
+            const recoveryPointsInput = document.getElementById('recoveryPoints').value;
+            const maxLossLimitInput = document.getElementById('maxLossLimit').value;
+            const multiplierInput = document.getElementById('multiplier').value;
+            const maxRowsInput = document.getElementById('maxRows').value;
+
+            const kStepInput = document.getElementById('kStep').value;
+            const kStepOrderInput = document.getElementById('kStepOrder').value;
+
+            const statusBar = document.getElementById('status-bar');
+
+            if (!startLotInput || startLotInput <= 0) {
+                alert("Please provide a valid Start Lot Size.");
+                return;
+            }
+
+            const startLot = parseFloat(startLotInput);
+            const maxLot = parseFloat(maxLotInput) || 200;
+            const startPrice = parseFloat(startPriceInput) || 2000;
+            const endPrice = parseFloat(endPriceInput);
+            const leverage = parseFloat(leverageInput) || 500;
+            const maxOrders = parseInt(maxOrdersInput) || 30;
+            const maxLossLimit = parseFloat(maxLossLimitInput) || -100000;
+            const maxRows = parseInt(maxRowsInput) || 30;
+
+            let stepPoints = parseFloat(stepPointsInput);
+            if (isNaN(stepPoints) || stepPoints < 0) stepPoints = 0;
+            let recoveryPoints = parseFloat(recoveryPointsInput);
+            if (isNaN(recoveryPoints) || recoveryPoints < 0) recoveryPoints = 0;
+            let fixedMultiplier = parseFloat(multiplierInput);
+            if (isNaN(fixedMultiplier) || fixedMultiplier < 0) fixedMultiplier = 0;
+
+            const kStep = parseFloat(kStepInput) || 1.0;
+            const kStepOrder = parseInt(kStepOrderInput) || 14;
+
+            // --- MAIN LOGIC BRANCHING ---
+
+            let bestResult = null;
+
+            // 1. FULL AUTO MODE (Step=0 AND Recov=0)
+            if (stepPoints === 0 && recoveryPoints === 0) {
+                statusBar.textContent = "Calculating... Please wait.";
+                statusBar.className = "mt-2 text-xs text-amber-400 h-4 truncate animate-pulse";
+
+                setTimeout(() => {
+                    let minRisk = Infinity;
+
+                    for (let n = 3; n <= maxOrders; n++) {
+                        let autoStep = calculateAutoStep(startPrice, endPrice, n, direction, kStep, kStepOrder);
+                        let grid = calculateFixedCountGrid(startPrice, autoStep, n, direction, kStep, kStepOrder);
+
+                        let optim = { found: false };
+
+                        if (fixedMultiplier > 0) {
+                            optim = findRecoveryForFixedM(grid, startLot, fixedMultiplier, maxLot, direction);
+                        } else {
+                            optim = findBestM_WAP(grid, startLot, maxLot, direction);
+                        }
+
+                        if (optim.found) {
+                            let stats = generateTableData(startLot, optim.m, maxLot, grid, leverage, direction, optim.finalPrice);
+                            let risk = parseFloat(stats.maxLoss);
+
+                            if (risk < maxLossLimit) continue;
+
+                            if (!bestResult) {
+                                bestResult = { n: n, step: autoStep, recoveryPts: optim.recoveryPts, m: optim.m, grid: grid, stats: stats, finalPrice: optim.finalPrice };
+                            } else {
+                                if (optim.m <= bestResult.m) {
+                                    bestResult = { n: n, step: autoStep, recoveryPts: optim.recoveryPts, m: optim.m, grid: grid, stats: stats, finalPrice: optim.finalPrice };
+                                }
+                            }
+                        }
+                    }
+                    finalizeCalculation(bestResult, startLot, direction, maxRows);
+                }, 50);
+                return;
+            }
+            // 2. FIXED STEP, AUTO RECOVERY
+            else if (stepPoints > 0 && recoveryPoints === 0) {
+                let grid = calculateRangeBasedGrid(startPrice, endPrice, stepPoints, maxOrders, direction, kStep, kStepOrder);
+                if (grid.length < 1) { handleError("Grid empty."); return; }
+
+                let optim = { found: false };
+                if (fixedMultiplier > 0) {
+                    optim = findRecoveryForFixedM(grid, startLot, fixedMultiplier, maxLot, direction);
+                } else {
+                    optim = findBestM_WAP(grid, startLot, maxLot, direction);
+                }
+
+                if (!optim.found) { handleError(fixedMultiplier > 0 ? "Fixed M too small/risky for this grid." : "Cannot solve Multiplier."); return; }
+
+                let stats = generateTableData(startLot, optim.m, maxLot, grid, leverage, direction, optim.finalPrice);
+
+                bestResult = { n: grid.length, step: stepPoints, recoveryPts: optim.recoveryPts, m: optim.m, grid: grid, stats: stats, finalPrice: optim.finalPrice };
+                finalizeCalculation(bestResult, startLot, direction, maxRows);
+            }
+            // 3. FIXED RECOVERY
+            else {
+                let grid = [];
+                let usedStep = stepPoints;
+
+                if (stepPoints > 0) {
+                    grid = calculateFixedCountGrid(startPrice, stepPoints, maxOrders, direction, kStep, kStepOrder);
+                } else {
+                    usedStep = calculateAutoStep(startPrice, endPrice, maxOrders, direction, kStep, kStepOrder);
+                    grid = calculateFixedCountGrid(startPrice, usedStep, maxOrders, direction, kStep, kStepOrder);
+                }
+
+                const lastPrice = grid[grid.length - 1].price;
+                const recoverySign = direction === 1 ? 1 : -1;
+                const finalPrice = lastPrice + ((recoveryPoints / 1000.0) * recoverySign);
+
+                let m = fixedMultiplier > 0 ? fixedMultiplier : solveMultiplier(startLot, maxLot, grid, finalPrice, direction);
+
+                if (fixedMultiplier > 0) {
+                    let pl = calculateNetPL(startLot, fixedMultiplier, maxLot, grid, finalPrice, direction);
+                    if (pl < 0) { handleError("Fixed Multiplier too low to break even at target."); return; }
+                } else {
+                    if (m < 0) { handleError("Cannot solve M."); return; }
+                }
+
+                let stats = generateTableData(startLot, m, maxLot, grid, leverage, direction, finalPrice);
+                bestResult = { n: grid.length, step: usedStep, recoveryPts: recoveryPoints, m: m, grid: grid, stats: stats, finalPrice: finalPrice };
+                finalizeCalculation(bestResult, startLot, direction, maxRows);
+            }
+        }
+
+        function finalizeCalculation(bestResult, startLot, direction, maxRows) {
+            const statusBar = document.getElementById('status-bar');
+
+            if (bestResult) {
+                const xml = constructXML(startLot, bestResult.m, bestResult.stats, (bestResult.recoveryPts / 1000.0), bestResult.recoveryPts, direction);
+                document.getElementById('output').value = xml;
+
+                renderSplitTable(bestResult.stats, direction, maxRows);
+
+                document.getElementById('sum-orders').textContent = bestResult.n;
+                document.getElementById('sum-vol').textContent = bestResult.stats.totalVol;
+                document.getElementById('sum-loss').textContent = '$' + bestResult.stats.maxLoss;
+                document.getElementById('sum-mult').textContent = bestResult.m.toFixed(2);
+                document.getElementById('table-summary').classList.remove('hidden');
+
+                const dirText = direction === 1 ? "BUY" : "SELL";
+                let msg = `Success: ${dirText} Optimized. Orders: ${bestResult.n} | Step: ${(bestResult.step / 1000).toFixed(2)} | Recov: ${Math.round(bestResult.recoveryPts)} pts | M: ${bestResult.m.toFixed(2)}`;
+
+                statusBar.textContent = msg;
+                statusBar.className = "mt-2 text-xs text-green-500 h-4 truncate";
+            } else {
+                handleError("Optimization failed. Constraints too tight.");
+            }
+        }
+
+        function handleError(msg) {
+            const statusBar = document.getElementById('status-bar');
+            statusBar.textContent = "Error: " + msg;
+            statusBar.className = "mt-2 text-xs text-red-500 h-4 truncate";
+        }
+
+        // --- OPTIMIZATION HELPERS ---
+
+        function findRecoveryForFixedM(grid, startLot, fixedM, maxLot, direction) {
+            const lastPrice = grid[grid.length - 1].price;
+            let cumVol = 0;
+            let cumVal = 0;
+
+            for (let i = 0; i < grid.length; i++) {
+                let rawLot = startLot * Math.pow(fixedM, i);
+                let lot = Math.min(rawLot, maxLot);
+                lot = Math.round(lot * 100) / 100;
+                cumVol += lot;
+                cumVal += (lot * grid[i].price);
+            }
+
+            let wap = cumVal / cumVol;
+            let distUSD = Math.abs(wap - lastPrice);
+            let distPts = distUSD * 1000;
+
+            if (distPts <= 20000) {
+                return { found: true, m: fixedM, recoveryPts: distPts, finalPrice: wap };
+            }
+            return { found: false };
+        }
+
+        function findBestM_WAP(grid, startLot, maxLot, direction) {
+            const lastPrice = grid[grid.length - 1].price;
+            for (let m = 1.00; m <= 2.50; m += 0.01) {
+                let currentM = Math.round(m * 100) / 100;
+                let cumVol = 0;
+                let cumVal = 0;
+                for (let i = 0; i < grid.length; i++) {
+                    let rawLot = startLot * Math.pow(currentM, i);
+                    let lot = Math.min(rawLot, maxLot);
+                    lot = Math.round(lot * 100) / 100;
+                    cumVol += lot;
+                    cumVal += (lot * grid[i].price);
+                }
+                let wap = cumVal / cumVol;
+                let distUSD = Math.abs(wap - lastPrice);
+                let distPts = distUSD * 1000;
+                if (distPts <= 10000) return { found: true, m: currentM, recoveryPts: distPts, finalPrice: wap };
+            }
+            return { found: false };
+        }
+
+        function calculateAutoStep(startPrice, endPrice, count, direction, kStep, kStepOrder) {
+            const priceRange = Math.abs(startPrice - endPrice);
+            let simulatedTotalFactor = 0;
+            let currentStepFactor = 1.0;
+            for (let i = 2; i <= count; i++) {
+                if ((i - 1) >= kStepOrder) currentStepFactor *= kStep;
+                simulatedTotalFactor += currentStepFactor;
+            }
+            if (simulatedTotalFactor === 0) simulatedTotalFactor = 1;
+            const calculatedBaseStepUSD = priceRange / simulatedTotalFactor;
+            return calculatedBaseStepUSD * 1000.0;
+        }
+
+        function calculateFixedCountGrid(startPrice, stepPoints, count, direction, kStep, kStepOrder) {
+            const prices = [];
+            let currentPrice = startPrice;
+            let currentStepPrice = stepPoints / 1000.0;
+            const directionSign = direction === 1 ? -1 : 1;
+            prices.push({ id: 1, price: currentPrice, stepUsed: 0 });
+            for (let i = 2; i <= count; i++) {
+                if ((i - 1) >= kStepOrder) {
+                    currentStepPrice = currentStepPrice * kStep;
+                    currentStepPrice = Math.round(currentStepPrice * 100) / 100;
+                }
+                currentPrice = currentPrice + (currentStepPrice * directionSign);
+                currentPrice = Math.round(currentPrice * 100) / 100;
+                prices.push({ id: i, price: currentPrice, stepUsed: currentStepPrice });
+            }
+            return prices;
+        }
+
+        function calculateRangeBasedGrid(startPrice, endPrice, stepPoints, maxOrders, direction, kStep, kStepOrder) {
+            const prices = [];
+            let currentPrice = startPrice;
+            let currentStepPrice = stepPoints / 1000.0;
+            const directionSign = direction === 1 ? -1 : 1;
+            prices.push({ id: 1, price: currentPrice, stepUsed: 0 });
+            for (let i = 2; i <= maxOrders; i++) {
+                if ((i - 1) >= kStepOrder) {
+                    currentStepPrice = currentStepPrice * kStep;
+                    currentStepPrice = Math.round(currentStepPrice * 100) / 100;
+                }
+                let nextPrice = currentPrice + (currentStepPrice * directionSign);
+                nextPrice = Math.round(nextPrice * 100) / 100;
+                let withinRange = true;
+                if (direction === 1) {
+                    if (nextPrice < endPrice) withinRange = false;
+                } else {
+                    if (nextPrice > endPrice) withinRange = false;
+                }
+                if (!withinRange) break;
+                currentPrice = nextPrice;
+                prices.push({ id: i, price: currentPrice, stepUsed: currentStepPrice });
+            }
+            return prices;
+        }
+
+        function solveMultiplier(startLot, maxLot, gridStructure, finalRecoveryPrice, direction) {
+            for (let m = 1.00; m <= 2.50; m += 0.01) {
+                let currentM = Math.round(m * 100) / 100;
+                let netPL = calculateNetPL(startLot, currentM, maxLot, gridStructure, finalRecoveryPrice, direction);
+                if (netPL >= 0) return currentM;
+            }
+            return -1;
+        }
+
+        function calculateNetPL(startLot, m, maxLot, gridStructure, finalRecoveryPrice, direction) {
+            let totalProfit = 0;
+            for (let i = 0; i < gridStructure.length; i++) {
+                let rawLot = startLot * Math.pow(m, i);
+                let lot = Math.min(rawLot, maxLot);
+                lot = Math.round(lot * 100) / 100;
+                let price = gridStructure[i].price;
+                let pnlUnit = (direction === 1) ? (finalRecoveryPrice - price) : (price - finalRecoveryPrice);
+                totalProfit += (lot * pnlUnit * CONTRACT_SIZE);
+            }
+            return totalProfit;
+        }
+
+        function generateTableData(startLot, m, maxLot, gridStructure, leverage, direction, finalRecoveryPrice) {
+            let orders = [];
+            let totalVol = 0;
+            let totalMargin = 0;
+            let cumulativeVol = 0;
+            let cumulativeWeightedPrice = 0;
+
+            for (let i = 0; i < gridStructure.length; i++) {
+                let gridItem = gridStructure[i];
+                let rawLot = startLot * Math.pow(m, i);
+                let lot = Math.min(rawLot, maxLot);
+                lot = Math.round(lot * 100) / 100;
+
+                totalVol += lot;
+                cumulativeVol += lot;
+                cumulativeWeightedPrice += (gridItem.price * lot);
+                let avgPrice = cumulativeWeightedPrice / cumulativeVol;
+                let margin = (gridItem.price * lot * CONTRACT_SIZE) / leverage;
+                totalMargin += margin;
+                let distanceToBe = Math.abs(gridItem.price - avgPrice);
+
+                orders.push({
+                    id: gridItem.id,
+                    price: gridItem.price.toFixed(2),
+                    stepUsed: gridItem.stepUsed > 0 ? gridItem.stepUsed.toFixed(2) : "-",
+                    lot: lot.toFixed(2),
+                    margin: margin.toFixed(2),
+                    distanceToBe: distanceToBe.toFixed(2),
+                    recovPrice: avgPrice.toFixed(2),
+                    rawPrice: gridItem.price,
+                    rawLot: lot,
+                    type: direction === 1 ? 'BUY' : 'SELL'
+                });
+            }
+
+            let finalMaxLoss = 0;
+            let finalPL = 0;
+
+            orders.forEach((currentOrder, index) => {
+                let currentPrice = currentOrder.rawPrice;
+                let currentFloatLoss = 0;
+                for (let j = 0; j < index; j++) {
+                    let prevOrder = orders[j];
+                    let pnlUnit = (direction === 1) ? (currentPrice - prevOrder.rawPrice) : (prevOrder.rawPrice - currentPrice);
+                    let pnl = prevOrder.rawLot * pnlUnit * CONTRACT_SIZE;
+                    currentFloatLoss += pnl;
+                }
+                currentOrder.floatLoss = currentFloatLoss.toFixed(2);
+                if (index === orders.length - 1) finalMaxLoss = currentFloatLoss;
+                let finalPnlUnit = (direction === 1) ? (finalRecoveryPrice - currentOrder.rawPrice) : (currentOrder.rawPrice - finalRecoveryPrice);
+                finalPL += currentOrder.rawLot * finalPnlUnit * CONTRACT_SIZE;
+            });
+
+            return {
+                orders: orders,
+                totalVol: totalVol.toFixed(2),
+                maxLoss: finalMaxLoss.toFixed(2),
+                totalMargin: totalMargin.toFixed(2),
+                finalPL: finalPL.toFixed(2)
+            };
+        }
+
+        // --- RENDER LOGIC WITH SPLIT ---
+        function renderSplitTable(data, direction, maxRows) {
+            const container = document.getElementById('table-container');
+            container.innerHTML = '';
+
+            const orders = data.orders;
+            const chunks = [];
+
+            // Split
+            for (let i = 0; i < orders.length; i += maxRows) {
+                chunks.push(orders.slice(i, i + maxRows));
+            }
+
+            // Wrapper
+            const wrapper = document.createElement('div');
+            wrapper.className = 'flex space-x-6 min-w-full pb-4'; // Flex row for columns
+
+            const typeColor = direction === 1 ? 'text-green-400' : 'text-red-400';
+
+            chunks.forEach((chunk, colIndex) => {
+                const tableDiv = document.createElement('div');
+                tableDiv.className = 'min-w-[650px] flex-shrink-0 bg-slate-900/50 rounded-lg p-2 border border-slate-700/50';
+
+                const table = document.createElement('table');
+                table.className = 'w-full text-left text-xs border-collapse';
+
+                const thead = document.createElement('thead');
+                thead.className = 'bg-slate-900 text-slate-400 font-semibold border-b border-slate-700';
+                thead.innerHTML = `
+                    <tr>
+                        <th class="p-2">#</th>
+                        <th class="p-2">Type</th>
+                        <th class="p-2">Price</th>
+                        <th class="p-2 text-center">Step</th>
+                        <th class="p-2">Lot</th>
+                        <th class="p-2 text-right">Margin</th>
+                        <th class="p-2 text-right text-red-400">Loss</th>
+                        <th class="p-2 text-right">Recov</th>
+                        <th class="p-2 text-right">Dist</th>
+                    </tr>
+                `;
+                table.appendChild(thead);
+
+                const tbody = document.createElement('tbody');
+                tbody.className = 'text-slate-300 divide-y divide-slate-800';
+
+                const lastId = orders[orders.length - 1].id;
+
+                chunk.forEach(order => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-slate-800 transition';
+                    if (order.id == lastId) tr.classList.add('border-l-2', 'border-amber-500');
+
+                    tr.innerHTML = `
+                        <td class="p-2 text-slate-400 font-mono text-center">${order.id}</td>
+                        <td class="p-2 font-bold ${typeColor} text-xs">${order.type}</td>
+                        <td class="p-2 text-slate-300">$${order.price}</td>
+                        <td class="p-2 text-slate-500 text-center text-xs">${order.stepUsed}</td>
+                        <td class="p-2 font-bold ${parseFloat(order.lot) > 1.0 ? 'text-amber-400' : 'text-blue-300'}">${order.lot}</td>
+                        <td class="p-2 text-right text-slate-400 text-xs">$${order.margin}</td>
+                        <td class="p-2 text-right text-red-400 font-mono text-xs">${order.floatLoss}</td>
+                        <td class="p-2 text-right text-slate-300 font-mono text-xs">${order.recovPrice}</td>
+                        <td class="p-2 text-right text-emerald-400 font-mono">$${order.distanceToBe}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                table.appendChild(tbody);
+                tableDiv.appendChild(table);
+                wrapper.appendChild(tableDiv);
+            });
+
+            container.appendChild(wrapper);
+        }
+
+        function constructXML(startLot, multiplier, data, recoveryBuffer, recoveryPoints, direction) {
+            const dirText = direction === 1 ? "BUY" : "SELL";
+            let xml = `<strategy_plan>\n`;
+            xml += `    <summary>\n`;
+            xml += `        <direction>${dirText}</direction>\n`;
+            xml += `        <start_lot>${startLot}</start_lot>\n`;
+            xml += `        <multiplier_used>${multiplier.toFixed(2)}</multiplier_used>\n`;
+            xml += `        <total_volume>${data.totalVol}</total_volume>\n`;
+            xml += `        <recovery_target_points>${recoveryPoints}</recovery_target_points>\n`;
+            xml += `        <max_floating_loss>${data.maxLoss}</max_floating_loss>\n`;
+            xml += `    </summary>\n`;
+            xml += `    <order_table>\n`;
+
+            data.orders.forEach(order => {
+                xml += `        <order id="${order.id}">\n`;
+                xml += `            <type>${order.type}</type>\n`;
+                xml += `            <price>${order.price}</price>\n`;
+                xml += `            <lot_size>${order.lot}</lot_size>\n`;
+                xml += `            <dist_to_avg_price>${order.distanceToBe}</dist_to_avg_price>\n`;
+                xml += `        </order>\n`;
+            });
+
+            xml += `    </order_table>\n`;
+            xml += `    <verification>\n`;
+            xml += `        <math_check>At recovery price, Total Profit = ${data.finalPL}</math_check>\n`;
+            xml += `    </verification>\n`;
+            xml += `</strategy_plan>`;
+
+            return xml;
+        }
+
+        function copyToClipboard() {
+            const outputArea = document.getElementById('output');
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(document.getElementById('output').value).then(() => showCopySuccess());
+            } else {
+                const wasHidden = outputArea.classList.contains('hidden');
+                if (wasHidden) outputArea.classList.remove('hidden');
+                outputArea.select();
+                document.execCommand('copy');
+                if (wasHidden) outputArea.classList.add('hidden');
+                showCopySuccess();
+            }
+        }
+
+        function showCopySuccess() {
+            const btn = document.querySelector('button[onclick="copyToClipboard()"]');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-check mr-1"></i> Copied';
+            setTimeout(() => { btn.innerHTML = originalHTML; }, 2000);
+        }
+
+        updateEndPriceDefault();
+    </script>
+</body>
+
+</html>
