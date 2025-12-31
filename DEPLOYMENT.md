@@ -70,3 +70,39 @@ Vercel là nơi tuyệt vời để host các web app tĩnh như của bạn mi�
     *   Đợi khoảng 1 phút. Khi màn hình hiện pháo hoa chúc mừng là xong! 
     *   Bấm vào hình ảnh hoặc nút **Visit** để xem trang web của bạn đã online.
     *   Bạn có thể copy đường link (ví dụ: `fin-calculation.vercel.app`) gửi cho bạn bè.
+
+---
+
+## Phần 3: Sao lưu code (Backup) trước khi Update lớn
+
+Trước khi thực hiện các thay đổi lớn, bạn nên lưu lại phiên bản hiện tại để có thể khôi phục nếu cần. Có 2 cách an toàn:
+
+### Cách 1: Lưu trạng thái hiện tại (Commit & Push)
+Lưu trực tiếp lên nhánh chính (`main`).
+
+```bash
+git add .
+git commit -m "Backup code hiện tại trước khi update mới"
+git push
+```
+
+### Cách 2: Tạo nhánh sao lưu riêng (Khuyên dùng)
+Tạo một nhánh (branch) mới để giữ nguyên code cũ.
+
+1.  **Tạo và chuyển sang nhánh backup**:
+    ```bash
+    git checkout -b backup-version-name
+    ```
+2.  **Lưu code lên nhánh này**:
+    ```bash
+    git add .
+    git commit -m "Lưu version ổn định"
+    git push origin backup-version-name
+    ```
+3.  **Quay lại nhánh chính để làm việc tiếp**:
+    ```bash
+    git checkout main
+    ```
+
+**Khôi phục:**
+Nếu muốn quay lại bản backup: `git checkout backup-version-name`

@@ -123,6 +123,7 @@ function calculateTrading() {
     let logHTML = '';
 
     let timeToX2 = null;
+    let timeToBreakeven = null;
     const initialTotalCapital = initialAccounts * capitalPerAccount;
 
     for (let day = 1; day <= totalDays; day++) {
@@ -136,6 +137,12 @@ function calculateTrading() {
         cashPool += reinvestAmount;
         monthlyWithdrawnAccumulator += withdrawAmount;
         totalWithdrawn += withdrawAmount;
+
+        // Check Breakeven Milestone (Total Withdrawn >= Initial Capital)
+        if (timeToBreakeven === null && totalWithdrawn >= initialTotalCapital) {
+            timeToBreakeven = day;
+            logHTML += `<div style="color: #3b82f6; margin-bottom: 5px;">Day ${day}: 💎 Hoàn vốn đầu tư! (Tổng rút: ${formatCurrency(totalWithdrawn)})</div>`;
+        }
 
         // Check if we can open new account
         let newAccountsToday = 0;
@@ -190,6 +197,23 @@ function calculateTrading() {
     } else {
         document.getElementById('c4-x2-time').textContent = 'Chưa đạt';
         document.getElementById('c4-x2-time').style.color = '#94a3b8';
+    }
+
+    // New Output: Breakeven Time
+    const breakEvenEl = document.getElementById('c4-breakeven-time');
+    if (timeToBreakeven) {
+        const bMonths = Math.floor(timeToBreakeven / daysPerMonth);
+        const bDays = timeToBreakeven % daysPerMonth;
+        let timeStr = `${timeToBreakeven} ngày`;
+        // Only show months if meaningful (at least 1 month)
+        if (bMonths > 0) {
+            timeStr = `${bMonths} tháng ${bDays > 0 ? bDays + ' ngày' : ''}`;
+        }
+        breakEvenEl.textContent = timeStr;
+        breakEvenEl.style.color = '#3b82f6';
+    } else {
+        breakEvenEl.textContent = 'Chưa đạt';
+        breakEvenEl.style.color = '#94a3b8';
     }
 
     document.getElementById('c4-log').innerHTML = logHTML || '<div style="color: #94a3b8">Chưa có sự kiện nổi bật</div>';
