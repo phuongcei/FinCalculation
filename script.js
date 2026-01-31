@@ -563,5 +563,63 @@ function renderChart(canvasId, labels, data1, data2, existingChartInstance, setC
     setChartInstance(newChart);
 }
 
+// --- CALCULATOR 6: RISK XAU CALCULATE ---
+function calculateRiskXAU() {
+    const capital = parseCurrency(document.getElementById('c6-capital').value);
+    const stepPoints = parseFloat(document.getElementById('c6-step').value);
+    const lot = parseFloat(document.getElementById('c6-lot').value);
+
+    if (!capital || !stepPoints || !lot) return;
+
+    // Convert step from points to USD (1000 points = 1 USD)
+    const stepUSD = stepPoints / 1000;
+
+    // Variables for formula: X = Capital, V = Lot, S = Step(USD)
+    const X = capital;
+    const V = lot;
+    const S = stepUSD;
+
+    // New Formula with conditional logic for better accuracy:
+    // IF( (X / (V*100)) <= S, (X / (V*100)), S * (SQRT(1 + (8*X)/(100*V*S)) - 1) / 2 )
+    let dmax;
+    const condition = X / (V * 100);
+
+    if (condition <= S) {
+        dmax = condition;
+    } else {
+        dmax = S * (Math.sqrt(1 + (8 * X) / (100 * V * S)) - 1) / 2;
+    }
+
+    // Calculate maximum number of orders
+    const maxOrders = Math.floor(dmax / stepUSD);
+
+    // Update UI Results
+    document.getElementById('c6-dmax').textContent = `${dmax.toFixed(2)} USD`;
+    document.getElementById('c6-capital-display').textContent = `${capital.toLocaleString('en-US')} $`;
+    document.getElementById('c6-step-display').textContent = `${stepPoints.toLocaleString('en-US')} points`;
+    document.getElementById('c6-lot-display').textContent = lot.toFixed(2);
+    document.getElementById('c6-max-orders').textContent = `${maxOrders} lệnh`;
+
+    // Show Formula Display - Dynamic based on condition
+    let formulaStr, subStr, centerFormulaHTML;
+
+    if (condition <= S) {
+        // Use first branch: X / (V × 100)
+        formulaStr = `D<sub>max</sub> = X / (V × 100)`;
+        subStr = `X=${capital.toLocaleString('en-US')}, V=${lot}<br>Điều kiện: ${condition.toFixed(2)} ≤ ${stepUSD.toFixed(2)} → Sử dụng công thức đơn giản<br>D<sub>max</sub> = ${capital.toLocaleString('en-US')} / (${lot} × 100)<br>D<sub>max</sub> = ${dmax.toFixed(2)} USD`;
+        centerFormulaHTML = `D<sub>max</sub> = X / (V × 100)`;
+    } else {
+        // Use second branch: S × (√(1 + 8X/(100VS)) - 1) / 2
+        formulaStr = `D<sub>max</sub> = S × (√(1 + 8X/(100VS)) - 1) / 2`;
+        subStr = `X=${capital.toLocaleString('en-US')}, V=${lot}, S=${stepUSD.toFixed(2)} USD<br>Điều kiện: ${condition.toFixed(2)} > ${stepUSD.toFixed(2)} → Sử dụng công thức nâng cao<br>D<sub>max</sub> = ${stepUSD.toFixed(2)} × (√(1 + 8×${capital.toLocaleString('en-US')}/(100×${lot}×${stepUSD.toFixed(2)})) - 1) / 2<br>D<sub>max</sub> = ${dmax.toFixed(2)} USD`;
+        centerFormulaHTML = `D<sub>max</sub> = S × (√(1 + 8X/(100VS)) - 1) / 2`;
+    }
+
+    // Update center formula display
+    document.getElementById('c6-formula-display').innerHTML = centerFormulaHTML;
+
+    displayFormula('c6-formula', formulaStr, subStr);
+}
+
 // Initial Call to setup default view or wait for input
 // calculateCompound(); // Optional: Calculate default values on load
