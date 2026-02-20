@@ -593,12 +593,26 @@ function calculateRiskXAU() {
     // Calculate maximum number of orders
     const maxOrders = Math.floor(dmax / stepUSD);
 
+    // Calculate required capital for 2 * Dmax
+    const targetDmax = 2 * dmax;
+    let requiredCapital;
+    if (targetDmax <= S) {
+        requiredCapital = targetDmax * V * 100;
+    } else {
+        requiredCapital = (Math.pow((2 * targetDmax / S) + 1, 2) - 1) * 100 * V * S / 8;
+    }
+
     // Update UI Results
     document.getElementById('c6-dmax').textContent = `${dmax.toFixed(2)} USD`;
     document.getElementById('c6-capital-display').textContent = `${capital.toLocaleString('en-US')} $`;
     document.getElementById('c6-step-display').textContent = `${stepPoints.toLocaleString('en-US')} points`;
     document.getElementById('c6-lot-display').textContent = lot.toFixed(2);
     document.getElementById('c6-max-orders').textContent = `${maxOrders} lệnh`;
+
+    const x2Element = document.getElementById('c6-capital-x2');
+    if (x2Element) {
+        x2Element.textContent = `${requiredCapital.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $`;
+    }
 
     // Show Formula Display - Dynamic based on condition
     let formulaStr, subStr, centerFormulaHTML;
