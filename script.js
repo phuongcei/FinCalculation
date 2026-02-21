@@ -589,7 +589,7 @@ function calculateRiskXAU() {
     } else {
         dmax = S * (Math.sqrt(1 + (8 * X) / (100 * V * S)) - 1) / 2;
     }
-    const maxOrdersBase = Math.floor(dmax / stepUSD);
+    const maxOrdersBase = Math.floor(dmax / stepUSD) + 1;
 
     // ── SCALING SIMULATION (tính toán có k_lot) ──
     // Mô phỏng từng lệnh: mỗi n lệnh, lot tăng * k_lot
@@ -656,6 +656,8 @@ function calculateRiskXAU() {
     }
 
     // Số lệnh tối đa với scaling
+    // Dùng floor(dmaxScaled/step)+1 để nhất quán với công thức base
+    // (lệnh 0 mở tại D=0, lệnh 1 tại D=step, ..., lệnh n tại D=n*step)
     const totalOrdersScaled = Math.floor(dmaxScaled / stepUSD) + 1;
 
     // Tính số epoch đã đi qua
