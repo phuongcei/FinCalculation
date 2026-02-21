@@ -567,33 +567,101 @@ function renderChart(canvasId, labels, data1, data2, existingChartInstance, setC
 function calculateRiskXAU() {
     const capital = parseCurrency(document.getElementById('c6-capital').value);
     const stepPoints = parseFloat(document.getElementById('c6-step').value);
-    const lot = parseFloat(document.getElementById('c6-lot').value);
+    const baseLot = parseFloat(document.getElementById('c6-lot').value);
+    const kLot = parseFloat(document.getElementById('c6-klot').value) || 1.0;
+    const nOrders = parseInt(document.getElementById('c6-n-orders').value) || 50;
 
-    if (!capital || !stepPoints || !lot) return;
+    if (!capital || !stepPoints || !baseLot) return;
 
     // Convert step from points to USD (1000 points = 1 USD)
     const stepUSD = stepPoints / 1000;
 
-    // Variables for formula: X = Capital, V = Lot, S = Step(USD)
+    // ── BASE CALCULATION (với lot gốc, không scaling) ──
     const X = capital;
-    const V = lot;
+    const V = baseLot;
     const S = stepUSD;
 
-    // New Formula with conditional logic for better accuracy:
-    // IF( (X / (V*100)) <= S, (X / (V*100)), S * (SQRT(1 + (8*X)/(100*V*S)) - 1) / 2 )
+    // Formula: IF( X/(V*100) <= S, X/(V*100), S*(√(1+8X/(100VS))-1)/2 )
     let dmax;
     const condition = X / (V * 100);
-
     if (condition <= S) {
         dmax = condition;
     } else {
         dmax = S * (Math.sqrt(1 + (8 * X) / (100 * V * S)) - 1) / 2;
     }
+    const maxOrdersBase = Math.floor(dmax / stepUSD);
 
-    // Calculate maximum number of orders
-    const maxOrders = Math.floor(dmax / stepUSD);
+    // ── SCALING SIMULATION (tính toán có k_lot) ──
+    // Mô phỏng từng lệnh: mỗi n lệnh, lot tăng * k_lot
+    // Một lệnh DCA thứ i mở tại giá cách entry = i * step
+    // Margin cho lệnh thứ i = lot_i * 100 (giả sử margin 1/100)
+    // Tổng loss nếu giá đi D = sum_i( lot_i * D ) = D * sum(lot_i)
+    // Capital bị cạn khi: sum(lot_i) * D_per_order = X => D effective
+    //
+    // Thực ra: mỗi lệnh i (0-indexed) có unrealized loss tích lũy khi giá đi D:
+    //   lệnh 0 (entry): loss = lot_0 * (D) * 100   [trong đó 100 = USD/lot/USD move]
+    //   lệnh 1 (tại entry + step): loss = lot_1 * (D - step) * 100  ... etc
+    // 
+    // Đây là bài toán tìm D lớn nhất sao cho tổng loss <= capital.
+    // Tổng loss khi đã mở k lệnh (0 -> k-1) và giá đi D từ lệnh 0:
+    //   L(D) = 100 * sum_{i=0}^{k-1} lot_i * (D - i*step)
+    //   k = floor(D/step) + 1 (số lệnh đã mở)
+    //
+    // Ta simulate từng bước: tăng D dần, mỗi khi vượt step thì mở lệnh mới.
+    // Dùng binary search hoặc iterative để tìm D_max khi L(D) = capital.
 
-    // Calculate required capital for 2 * Dmax
+    // Hàm getLotForOrder(orderIndex): lot size của lệnh thứ orderIndex (0-indexed)
+    function getLotForOrder(i) {
+        if (kLot === 1.0) return baseLot; // không scale
+        const epochIndex = Math.floor(i / nOrders);
+        return baseLot * Math.pow(kLot, epochIndex);
+    }
+
+    // Tính tổng floating loss khi giá đã đi D USD từ lệnh 0
+    // (giả sử giá ngược chiều, tất cả lệnh DCA đã mở theo step)
+    function totalLossAtD(D) {
+        // Số lệnh đã mở = floor(D / stepUSD) + 1 (lệnh 0 mở ngay)
+        const numOrders = Math.floor(D / stepUSD) + 1;
+        let loss = 0;
+        for (let i = 0; i < numOrders; i++) {
+            const orderOpenD = i * stepUSD; // giá lúc mở lệnh i so với entry
+            const floatLoss = getLotForOrder(i) * (D - orderOpenD) * 100;
+            loss += floatLoss;
+        }
+        return loss;
+    }
+
+    // Binary search: tìm D_max sao cho totalLossAtD(D_max) = capital
+    // D nằm trong khoảng [0, D_upper]
+    // D_upper: ước tính lớn nhất (nếu chỉ có 1 lệnh lot gốc, D = capital/(lot*100))
+    let D_upper = capital / (baseLot * 100) * 10; // lấy dư x10 cho an toàn
+    let D_lower = 0;
+    let dmaxScaled = 0;
+
+    // Check: nếu tại D=0 đã lỗ quá = chỉ có thể không mở lệnh nào
+    if (totalLossAtD(0) > capital) {
+        dmaxScaled = 0;
+    } else {
+        // Binary search với 100 iterations
+        for (let iter = 0; iter < 100; iter++) {
+            const D_mid = (D_lower + D_upper) / 2;
+            const loss = totalLossAtD(D_mid);
+            if (loss < capital) {
+                D_lower = D_mid;
+            } else {
+                D_upper = D_mid;
+            }
+        }
+        dmaxScaled = D_lower;
+    }
+
+    // Số lệnh tối đa với scaling
+    const totalOrdersScaled = Math.floor(dmaxScaled / stepUSD) + 1;
+
+    // Tính số epoch đã đi qua
+    const epochsUsed = Math.ceil(totalOrdersScaled / nOrders);
+
+    // ── REQUIRED CAPITAL for x2 Dmax (base) ──
     const targetDmax = 2 * dmax;
     let requiredCapital;
     if (targetDmax <= S) {
@@ -602,36 +670,47 @@ function calculateRiskXAU() {
         requiredCapital = (Math.pow((2 * targetDmax / S) + 1, 2) - 1) * 100 * V * S / 8;
     }
 
-    // Update UI Results
+    // ── UPDATE UI ──
     document.getElementById('c6-dmax').textContent = `${dmax.toFixed(2)} USD`;
     document.getElementById('c6-capital-display').textContent = `${capital.toLocaleString('en-US')} $`;
     document.getElementById('c6-step-display').textContent = `${stepPoints.toLocaleString('en-US')} points`;
-    document.getElementById('c6-lot-display').textContent = lot.toFixed(2);
-    document.getElementById('c6-max-orders').textContent = `${maxOrders} lệnh`;
+    document.getElementById('c6-lot-display').textContent = baseLot.toFixed(2);
+    document.getElementById('c6-max-orders').textContent = `${maxOrdersBase} lệnh`;
 
     const x2Element = document.getElementById('c6-capital-x2');
     if (x2Element) {
         x2Element.textContent = `${requiredCapital.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $`;
     }
 
-    // Show Formula Display - Dynamic based on condition
+    // New outputs
+    const dmaxScaledEl = document.getElementById('c6-dmax-scaled');
+    if (dmaxScaledEl) dmaxScaledEl.textContent = `${dmaxScaled.toFixed(2)} USD`;
+    document.getElementById('c6-total-orders-scaled').textContent = `${totalOrdersScaled} lệnh`;
+    document.getElementById('c6-epochs').textContent = `${epochsUsed} epoch`;
+
+    // ── EPOCH BREAKDOWN for formula display ──
+    let epochBreakdown = '';
+    for (let e = 0; e < epochsUsed; e++) {
+        const startOrder = e * nOrders + 1;
+        const endOrder = Math.min((e + 1) * nOrders, totalOrdersScaled);
+        const lotThisEpoch = baseLot * Math.pow(kLot, e);
+        epochBreakdown += `Epoch ${e + 1}: lệnh ${startOrder}→${endOrder}, lot = ${lotThisEpoch.toFixed(4)}<br>`;
+    }
+
+    // ── FORMULA DISPLAY ──
     let formulaStr, subStr, centerFormulaHTML;
 
     if (condition <= S) {
-        // Use first branch: X / (V × 100)
         formulaStr = `D<sub>max</sub> = X / (V × 100)`;
-        subStr = `X=${capital.toLocaleString('en-US')}, V=${lot}<br>Điều kiện: ${condition.toFixed(2)} ≤ ${stepUSD.toFixed(2)} → Sử dụng công thức đơn giản<br>D<sub>max</sub> = ${capital.toLocaleString('en-US')} / (${lot} × 100)<br>D<sub>max</sub> = ${dmax.toFixed(2)} USD`;
+        subStr = `X=${capital.toLocaleString('en-US')}, V=${baseLot}<br>Điều kiện: ${condition.toFixed(2)} ≤ ${stepUSD.toFixed(2)} → Công thức đơn giản<br>D<sub>max</sub> (gốc) = ${capital.toLocaleString('en-US')} / (${baseLot} × 100) = ${dmax.toFixed(2)} USD<br><br><b>Phân tích Lot Scaling (k_lot=${kLot}, n=${nOrders}):</b><br>${epochBreakdown}D<sub>max</sub> (có scaling) = ${dmaxScaled.toFixed(2)} USD`;
         centerFormulaHTML = `D<sub>max</sub> = X / (V × 100)`;
     } else {
-        // Use second branch: S × (√(1 + 8X/(100VS)) - 1) / 2
         formulaStr = `D<sub>max</sub> = S × (√(1 + 8X/(100VS)) - 1) / 2`;
-        subStr = `X=${capital.toLocaleString('en-US')}, V=${lot}, S=${stepUSD.toFixed(2)} USD<br>Điều kiện: ${condition.toFixed(2)} > ${stepUSD.toFixed(2)} → Sử dụng công thức nâng cao<br>D<sub>max</sub> = ${stepUSD.toFixed(2)} × (√(1 + 8×${capital.toLocaleString('en-US')}/(100×${lot}×${stepUSD.toFixed(2)})) - 1) / 2<br>D<sub>max</sub> = ${dmax.toFixed(2)} USD`;
+        subStr = `X=${capital.toLocaleString('en-US')}, V=${baseLot}, S=${stepUSD.toFixed(2)} USD<br>Điều kiện: ${condition.toFixed(2)} > ${stepUSD.toFixed(2)} → Công thức nâng cao<br>D<sub>max</sub> (gốc) = ${stepUSD.toFixed(2)} × (√(1+8×${capital.toLocaleString('en-US')}/(100×${baseLot}×${stepUSD.toFixed(2)}))-1)/2 = ${dmax.toFixed(2)} USD<br><br><b>Phân tích Lot Scaling (k_lot=${kLot}, n=${nOrders}):</b><br>${epochBreakdown}D<sub>max</sub> (có scaling) = ${dmaxScaled.toFixed(2)} USD`;
         centerFormulaHTML = `D<sub>max</sub> = S × (√(1 + 8X/(100VS)) - 1) / 2`;
     }
 
-    // Update center formula display
     document.getElementById('c6-formula-display').innerHTML = centerFormulaHTML;
-
     displayFormula('c6-formula', formulaStr, subStr);
 }
 
