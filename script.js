@@ -718,3 +718,121 @@ function calculateRiskXAU() {
 
 // Initial Call to setup default view or wait for input
 // calculateCompound(); // Optional: Calculate default values on load
+
+// --- CALCULATOR 7: RISK BTC CALCULATE ---
+function calculateRiskBTC() {
+    const capital = parseCurrency(document.getElementById('c7-capital').value);
+    const stepPoints = parseFloat(document.getElementById('c7-step').value);
+    const baseLot = parseFloat(document.getElementById('c7-lot').value);
+    const CS = parseFloat(document.getElementById('c7-contract-size').value) || 1;
+    const kLot = parseFloat(document.getElementById('c7-klot').value) || 1.0;
+    const nOrders = parseInt(document.getElementById('c7-n-orders').value) || 50;
+
+    if (!capital || !stepPoints || !baseLot) return;
+
+    // BTC/USD: 100 points = 1 USD (vs XAU: 1000 points = 1 USD)
+    // Verify: 65000→64000 = 1000 USD = 100,000 pts → 1 pt = 0.01 USD
+    const stepUSD = stepPoints / 100;
+
+    // ── BASE CALCULATION (lot cố định) ──
+    // Profit = ΔPrice × Lot × ContractSize
+    // Dmax formula thay 100 (XAU contract size) bằng CS:
+    // IF( X/(V×CS) ≤ S, X/(V×CS), S×(√(1+8X/(CS×V×S))-1)/2 )
+    const X = capital;
+    const V = baseLot;
+    const S = stepUSD;
+
+    let dmax;
+    const condition = X / (V * CS);
+    if (condition <= S) {
+        dmax = condition;
+    } else {
+        dmax = S * (Math.sqrt(1 + (8 * X) / (CS * V * S)) - 1) / 2;
+    }
+    const maxOrdersBase = Math.floor(dmax / stepUSD) + 1;
+
+    // ── SCALING SIMULATION (binary search với k_lot) ──
+    function getLotForOrder(i) {
+        if (kLot === 1.0) return baseLot;
+        const epochIndex = Math.floor(i / nOrders);
+        return baseLot * Math.pow(kLot, epochIndex);
+    }
+
+    // Loss tại D (USD) = sum_i[ lot_i × (D - i×step) × CS ]
+    function totalLossAtD(D) {
+        const numOrders = Math.floor(D / stepUSD) + 1;
+        let loss = 0;
+        for (let i = 0; i < numOrders; i++) {
+            const orderOpenD = i * stepUSD;
+            loss += getLotForOrder(i) * (D - orderOpenD) * CS;
+        }
+        return loss;
+    }
+
+    let D_upper = capital / (baseLot * CS) * 10;
+    let D_lower = 0;
+    let dmaxScaled = 0;
+
+    if (totalLossAtD(0) > capital) {
+        dmaxScaled = 0;
+    } else {
+        for (let iter = 0; iter < 100; iter++) {
+            const D_mid = (D_lower + D_upper) / 2;
+            if (totalLossAtD(D_mid) < capital) {
+                D_lower = D_mid;
+            } else {
+                D_upper = D_mid;
+            }
+        }
+        dmaxScaled = D_lower;
+    }
+
+    const totalOrdersScaled = Math.floor(dmaxScaled / stepUSD) + 1;
+    const epochsUsed = Math.ceil(totalOrdersScaled / nOrders);
+
+    // ── REQUIRED CAPITAL for x2 Dmax (base) ──
+    const targetDmax = 2 * dmax;
+    let requiredCapital;
+    if (targetDmax <= S) {
+        requiredCapital = targetDmax * V * CS;
+    } else {
+        requiredCapital = (Math.pow((2 * targetDmax / S) + 1, 2) - 1) * CS * V * S / 8;
+    }
+
+    // ── UPDATE UI ──
+    document.getElementById('c7-dmax').textContent = `${dmax.toFixed(2)} USD`;
+    document.getElementById('c7-capital-display').textContent = `${capital.toLocaleString('en-US')} $`;
+    document.getElementById('c7-step-display').textContent = `${stepPoints.toLocaleString('en-US')} points (= ${stepUSD.toFixed(2)} USD)`;
+    document.getElementById('c7-lot-display').textContent = baseLot.toFixed(2);
+    document.getElementById('c7-contract-size-display').textContent = CS;
+    document.getElementById('c7-max-orders').textContent = `${maxOrdersBase} lệnh`;
+    document.getElementById('c7-capital-x2').textContent = `${requiredCapital.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $`;
+    document.getElementById('c7-dmax-scaled').textContent = `${dmaxScaled.toFixed(2)} USD`;
+    document.getElementById('c7-total-orders-scaled').textContent = `${totalOrdersScaled} lệnh`;
+    document.getElementById('c7-epochs').textContent = `${epochsUsed} epoch`;
+
+    // ── EPOCH BREAKDOWN ──
+    let epochBreakdown = '';
+    for (let e = 0; e < epochsUsed; e++) {
+        const startOrder = e * nOrders + 1;
+        const endOrder = Math.min((e + 1) * nOrders, totalOrdersScaled);
+        const lotThisEpoch = baseLot * Math.pow(kLot, e);
+        epochBreakdown += `Epoch ${e + 1}: lệnh ${startOrder}→${endOrder}, lot = ${lotThisEpoch.toFixed(4)}<br>`;
+    }
+
+    // ── FORMULA DISPLAY ──
+    let formulaStr, subStr, centerFormulaHTML;
+
+    if (condition <= S) {
+        formulaStr = `D<sub>max</sub> = X / (V × CS)`;
+        subStr = `X=${capital.toLocaleString('en-US')}, V=${baseLot}, CS=${CS}<br>Điều kiện: ${condition.toFixed(2)} ≤ ${stepUSD.toFixed(2)} → Công thức đơn giản<br>D<sub>max</sub> (gốc) = ${capital.toLocaleString('en-US')} / (${baseLot} × ${CS}) = ${dmax.toFixed(2)} USD<br><br><b>Phân tích Lot Scaling (k_lot=${kLot}, n=${nOrders}):</b><br>${epochBreakdown}D<sub>max</sub> (có scaling) = ${dmaxScaled.toFixed(2)} USD`;
+        centerFormulaHTML = `D<sub>max</sub> = X / (V × CS)`;
+    } else {
+        formulaStr = `D<sub>max</sub> = S × (√(1 + 8X/(CS×V×S)) − 1) / 2`;
+        subStr = `X=${capital.toLocaleString('en-US')}, V=${baseLot}, CS=${CS}, S=${stepUSD.toFixed(2)} USD<br>1 pt = 0.01 USD → stepUSD = ${stepPoints.toLocaleString('en-US')} / 100 = ${stepUSD.toFixed(2)} USD<br>Điều kiện: ${condition.toFixed(2)} > ${stepUSD.toFixed(2)} → Công thức nâng cao<br>D<sub>max</sub> (gốc) = ${stepUSD.toFixed(2)} × (√(1+8×${capital.toLocaleString('en-US')}/(${CS}×${baseLot}×${stepUSD.toFixed(2)}))-1)/2 = ${dmax.toFixed(2)} USD<br><br><b>Phân tích Lot Scaling (k_lot=${kLot}, n=${nOrders}):</b><br>${epochBreakdown}D<sub>max</sub> (có scaling) = ${dmaxScaled.toFixed(2)} USD`;
+        centerFormulaHTML = `D<sub>max</sub> = S × (√(1 + 8X/(CS×V×S)) − 1) / 2`;
+    }
+
+    document.getElementById('c7-formula-display').innerHTML = centerFormulaHTML;
+    displayFormula('c7-formula', formulaStr, subStr);
+}

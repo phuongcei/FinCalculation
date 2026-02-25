@@ -49,6 +49,10 @@
                     <i class="fa-solid fa-shield-halved"></i>
                     <span>Risk XAU Calculate</span>
                 </li>
+                <li data-tab="tab-risk-btc">
+                    <i class="fa-brands fa-bitcoin"></i>
+                    <span>Risk BTC Calculate</span>
+                </li>
             </ul>
             <div class="footer-info">
                 © 2025 FinCalc
@@ -489,6 +493,130 @@
                                     style="font-size: 4rem; color: #10b981; margin-bottom: 1rem;"></i>
                                 <h3 style="color: #cbd5e1; margin-bottom: 0.5rem;">Công thức tính toán</h3>
                                 <div id="c6-formula-display"
+                                    style="font-size: 1.5rem; color: #e2e8f0; font-family: 'Courier New', monospace; margin-top: 1rem;">
+                                    D<sub>max</sub> = ?
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab 7: Risk BTC Calculate -->
+            <section id="tab-risk-btc" class="tab-pane">
+                <header>
+                    <h1>Risk BTC Calculate</h1>
+                    <p>Tính toán số giá BTC tài khoản chịu đựng được</p>
+                </header>
+                <div class="calculator-grid">
+                    <div class="input-card">
+                        <div class="form-group">
+                            <label>Vốn tài khoản - Capital (USD)</label>
+                            <div class="input-wrapper">
+                                <input type="text" id="c7-capital" class="format-currency" placeholder="VD: 10,000">
+                                <i class="fa-solid fa-wallet"></i>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Step between orders (points) — 100 pts = 1 USD (BTC/USD)</label>
+                            <div class="input-wrapper">
+                                <input type="number" id="c7-step" placeholder="VD: 10000">
+                                <i class="fa-solid fa-arrows-left-right"></i>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Lot size ban đầu</label>
+                            <div class="input-wrapper">
+                                <input type="number" id="c7-lot" step="0.01" placeholder="VD: 0.01">
+                                <i class="fa-solid fa-scale-balanced"></i>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Contract Size (default: 1)</label>
+                            <div class="input-wrapper">
+                                <input type="number" id="c7-contract-size" step="1" placeholder="Default: 1" value="1">
+                                <i class="fa-solid fa-file-contract"></i>
+                            </div>
+                        </div>
+                        <div class="form-group-row">
+                            <div class="form-group half">
+                                <label>Hệ số nhân Lot (k_lot)</label>
+                                <div class="input-wrapper">
+                                    <input type="number" id="c7-klot" step="0.1" placeholder="Default: 1.0" value="1.0">
+                                    <i class="fa-solid fa-multiply"></i>
+                                </div>
+                            </div>
+                            <div class="form-group half">
+                                <label>Tăng Lot sau n lệnh</label>
+                                <div class="input-wrapper">
+                                    <input type="number" id="c7-n-orders" step="1" placeholder="Default: 50" value="50">
+                                    <i class="fa-solid fa-layer-group"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="btn-calculate" onclick="calculateRiskBTC()">
+                            Tính toán <i class="fa-solid fa-calculator"></i>
+                        </button>
+                        <!-- Formula Display -->
+                        <div class="formula-box" id="c7-formula">
+                            <!-- JS will populate -->
+                        </div>
+                    </div>
+
+                    <div class="result-card glass-effect">
+                        <div class="result-summary">
+                            <!-- Dmax gốc -->
+                            <div class="summary-item total">
+                                <span>D<sub>max</sub> (Lot cố định):</span>
+                                <h2 id="c7-dmax">0 USD</h2>
+                            </div>
+                            <div class="summary-item">
+                                <span>Vốn tài khoản:</span>
+                                <h3 id="c7-capital-display">0 $</h3>
+                            </div>
+                            <div class="summary-item">
+                                <span>Step giữa các lệnh:</span>
+                                <h3 id="c7-step-display">0 points</h3>
+                            </div>
+                            <div class="summary-item">
+                                <span>Lot size ban đầu:</span>
+                                <h3 id="c7-lot-display">0.00</h3>
+                            </div>
+                            <div class="summary-item">
+                                <span>Contract Size:</span>
+                                <h3 id="c7-contract-size-display">1</h3>
+                            </div>
+                            <div class="summary-item">
+                                <span>Số lệnh tối đa (Lot gốc):</span>
+                                <h3 id="c7-max-orders">0 lệnh</h3>
+                            </div>
+                            <div class="summary-item highlight">
+                                <span>Vốn cần để gồng x2 D<sub>max</sub>:</span>
+                                <h3 id="c7-capital-x2">0 $</h3>
+                            </div>
+
+                            <!-- Dmax có scaling -->
+                            <div class="summary-item total"
+                                style="margin-top: 1rem; border-top: 2px solid rgba(99,102,241,0.4); padding-top: 1rem;">
+                                <span>D<sub>max</sub> (Có Lot Scaling):</span>
+                                <h2 id="c7-dmax-scaled" style="color: #a78bfa;">0 USD</h2>
+                            </div>
+                            <div class="summary-item">
+                                <span>Tổng số lệnh (có scaling):</span>
+                                <h3 id="c7-total-orders-scaled">0 lệnh</h3>
+                            </div>
+                            <div class="summary-item">
+                                <span>Số epoch lot size:</span>
+                                <h3 id="c7-epochs">0 epoch</h3>
+                            </div>
+                        </div>
+                        <div class="chart-container" style="padding: 2rem; text-align: center;">
+                            <div
+                                style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(251, 191, 36, 0.1)); border-radius: 12px; padding: 2rem;">
+                                <i class="fa-brands fa-bitcoin"
+                                    style="font-size: 4rem; color: #f59e0b; margin-bottom: 1rem;"></i>
+                                <h3 style="color: #cbd5e1; margin-bottom: 0.5rem;">Công thức tính toán</h3>
+                                <div id="c7-formula-display"
                                     style="font-size: 1.5rem; color: #e2e8f0; font-family: 'Courier New', monospace; margin-top: 1rem;">
                                     D<sub>max</sub> = ?
                                 </div>
