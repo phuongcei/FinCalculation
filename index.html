@@ -434,6 +434,24 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="form-group-row">
+                            <div class="form-group half">
+                                <label>Contract Size (default: 100)</label>
+                                <div class="input-wrapper">
+                                    <input type="number" id="c6-contract-size" step="1" placeholder="Default: 100"
+                                        value="100">
+                                    <i class="fa-solid fa-file-contract"></i>
+                                </div>
+                            </div>
+                            <div class="form-group half">
+                                <label>Entry Price (USD)</label>
+                                <div class="input-wrapper">
+                                    <input type="number" id="c6-entry-price" step="1" placeholder="VD: 5000"
+                                        value="5000">
+                                    <i class="fa-solid fa-tag"></i>
+                                </div>
+                            </div>
+                        </div>
                         <button class="btn-calculate" onclick="calculateRiskXAU()">
                             Tính toán <i class="fa-solid fa-calculator"></i>
                         </button>
@@ -463,12 +481,21 @@
                                 <h3 id="c6-lot-display">0.00</h3>
                             </div>
                             <div class="summary-item">
+                                <span>Contract Size:</span>
+                                <h3 id="c6-contract-size-display">100</h3>
+                            </div>
+                            <div class="summary-item">
                                 <span>Số lệnh tối đa (Lot gốc):</span>
                                 <h3 id="c6-max-orders">0 lệnh</h3>
                             </div>
                             <div class="summary-item highlight">
                                 <span>Vốn cần để gồng x2 D<sub>max</sub>:</span>
                                 <h3 id="c6-capital-x2">0 $</h3>
+                            </div>
+                            <div class="summary-item"
+                                style="background: rgba(239,68,68,0.08); border-radius: 8px; padding: 0.5rem 0;">
+                                <span>🔥 Burn Out Price (Lot cố định):</span>
+                                <h3 id="c6-burnout" style="color: #ef4444;">-- $</h3>
                             </div>
 
                             <!-- Dmax có scaling -->
@@ -484,6 +511,11 @@
                             <div class="summary-item">
                                 <span>Số epoch lot size:</span>
                                 <h3 id="c6-epochs">0 epoch</h3>
+                            </div>
+                            <div class="summary-item"
+                                style="background: rgba(239,68,68,0.08); border-radius: 8px; padding: 0.5rem 0;">
+                                <span>🔥 Burn Out Price (Có Scaling):</span>
+                                <h3 id="c6-burnout-scaled" style="color: #ef4444;">-- $</h3>
                             </div>
                         </div>
                         <div class="chart-container" style="padding: 2rem; text-align: center;">
