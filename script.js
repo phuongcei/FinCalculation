@@ -727,6 +727,7 @@ function calculateRiskBTC() {
     const CS = parseFloat(document.getElementById('c7-contract-size').value) || 1;
     const kLot = parseFloat(document.getElementById('c7-klot').value) || 1.0;
     const nOrders = parseInt(document.getElementById('c7-n-orders').value) || 50;
+    const entryPrice = parseFloat(document.getElementById('c7-entry-price').value) || 0;
 
     if (!capital || !stepPoints || !baseLot) return;
 
@@ -810,6 +811,19 @@ function calculateRiskBTC() {
     document.getElementById('c7-dmax-scaled').textContent = `${dmaxScaled.toFixed(2)} USD`;
     document.getElementById('c7-total-orders-scaled').textContent = `${totalOrdersScaled} lệnh`;
     document.getElementById('c7-epochs').textContent = `${epochsUsed} epoch`;
+
+    // Burn Out Price
+    if (entryPrice > 0) {
+        const burnout = entryPrice - dmax;
+        const burnoutScaled = entryPrice - dmaxScaled;
+        document.getElementById('c7-burnout').textContent =
+            `${burnout.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $`;
+        document.getElementById('c7-burnout-scaled').textContent =
+            `${burnoutScaled.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $`;
+    } else {
+        document.getElementById('c7-burnout').textContent = '-- $';
+        document.getElementById('c7-burnout-scaled').textContent = '-- $';
+    }
 
     // ── EPOCH BREAKDOWN ──
     let epochBreakdown = '';

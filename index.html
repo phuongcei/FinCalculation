@@ -554,6 +554,13 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="form-group">
+                            <label>Entry Price (USD)</label>
+                            <div class="input-wrapper">
+                                <input type="number" id="c7-entry-price" step="1" placeholder="VD: 70000" value="70000">
+                                <i class="fa-solid fa-tag"></i>
+                            </div>
+                        </div>
                         <button class="btn-calculate" onclick="calculateRiskBTC()">
                             Tính toán <i class="fa-solid fa-calculator"></i>
                         </button>
@@ -594,6 +601,11 @@
                                 <span>Vốn cần để gồng x2 D<sub>max</sub>:</span>
                                 <h3 id="c7-capital-x2">0 $</h3>
                             </div>
+                            <div class="summary-item"
+                                style="background: rgba(239,68,68,0.08); border-radius: 8px; padding: 0.5rem 0;">
+                                <span>🔥 Burn Out Price (Lot cố định):</span>
+                                <h3 id="c7-burnout" style="color: #ef4444;">-- $</h3>
+                            </div>
 
                             <!-- Dmax có scaling -->
                             <div class="summary-item total"
@@ -608,6 +620,11 @@
                             <div class="summary-item">
                                 <span>Số epoch lot size:</span>
                                 <h3 id="c7-epochs">0 epoch</h3>
+                            </div>
+                            <div class="summary-item"
+                                style="background: rgba(239,68,68,0.08); border-radius: 8px; padding: 0.5rem 0;">
+                                <span>🔥 Burn Out Price (Có Scaling):</span>
+                                <h3 id="c7-burnout-scaled" style="color: #ef4444;">-- $</h3>
                             </div>
                         </div>
                         <div class="chart-container" style="padding: 2rem; text-align: center;">
