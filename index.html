@@ -452,6 +452,13 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="form-group">
+                            <label>Max Orders — Giới hạn số lệnh (default: 1000)</label>
+                            <div class="input-wrapper">
+                                <input type="number" id="c6-max-orders-limit" step="1" placeholder="Default: 1000" value="1000">
+                                <i class="fa-solid fa-hand"></i>
+                            </div>
+                        </div>
                         <button class="btn-calculate" onclick="calculateRiskXAU()">
                             Tính toán <i class="fa-solid fa-calculator"></i>
                         </button>
@@ -516,6 +523,17 @@
                                 style="background: rgba(239,68,68,0.08); border-radius: 8px; padding: 0.5rem 0;">
                                 <span>🔥 Burn Out Price (Có Scaling):</span>
                                 <h3 id="c6-burnout-scaled" style="color: #ef4444;">-- $</h3>
+                            </div>
+
+                            <!-- Dmax with Max Orders cap -->
+                            <div class="summary-item total"
+                                style="margin-top: 1rem; border-top: 2px solid rgba(245,158,11,0.4); padding-top: 1rem;">
+                                <span>D<sub>max</sub> (Cap Max Orders):</span>
+                                <h2 id="c6-dmax-capped" style="color: #f59e0b;">0 USD</h2>
+                            </div>
+                            <div class="summary-item" style="background: rgba(239,68,68,0.08); border-radius: 8px; padding: 0.5rem 0;">
+                                <span>🔥 Burn Out Price (Cap Max Orders):</span>
+                                <h3 id="c6-burnout-capped" style="color: #ef4444;">-- $</h3>
                             </div>
                         </div>
                         <div class="chart-container" style="padding: 2rem; text-align: center;">
@@ -593,6 +611,13 @@
                                 <i class="fa-solid fa-tag"></i>
                             </div>
                         </div>
+                        <div class="form-group">
+                            <label>Max Orders — Giới hạn số lệnh (default: 1000)</label>
+                            <div class="input-wrapper">
+                                <input type="number" id="c7-max-orders-limit" step="1" placeholder="Default: 1000" value="1000">
+                                <i class="fa-solid fa-hand"></i>
+                            </div>
+                        </div>
                         <button class="btn-calculate" onclick="calculateRiskBTC()">
                             Tính toán <i class="fa-solid fa-calculator"></i>
                         </button>
@@ -657,6 +682,17 @@
                                 style="background: rgba(239,68,68,0.08); border-radius: 8px; padding: 0.5rem 0;">
                                 <span>🔥 Burn Out Price (Có Scaling):</span>
                                 <h3 id="c7-burnout-scaled" style="color: #ef4444;">-- $</h3>
+                            </div>
+
+                            <!-- Dmax with Max Orders cap -->
+                            <div class="summary-item total"
+                                style="margin-top: 1rem; border-top: 2px solid rgba(245,158,11,0.4); padding-top: 1rem;">
+                                <span>D<sub>max</sub> (Cap Max Orders):</span>
+                                <h2 id="c7-dmax-capped" style="color: #f59e0b;">0 USD</h2>
+                            </div>
+                            <div class="summary-item" style="background: rgba(239,68,68,0.08); border-radius: 8px; padding: 0.5rem 0;">
+                                <span>🔥 Burn Out Price (Cap Max Orders):</span>
+                                <h3 id="c7-burnout-capped" style="color: #ef4444;">-- $</h3>
                             </div>
                         </div>
                         <div class="chart-container" style="padding: 2rem; text-align: center;">

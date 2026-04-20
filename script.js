@@ -572,6 +572,7 @@ function calculateRiskXAU() {
     const kLot = parseFloat(document.getElementById('c6-klot').value) || 1.0;
     const nOrders = parseInt(document.getElementById('c6-n-orders').value) || 50;
     const entryPrice = parseFloat(document.getElementById('c6-entry-price').value) || 0;
+    const maxOrdersLimit = parseInt(document.getElementById('c6-max-orders-limit').value) || 1000;
 
     if (!capital || !stepPoints || !baseLot) return;
 
@@ -642,6 +643,40 @@ function calculateRiskXAU() {
         requiredCapital = (Math.pow((2 * targetDmax / S) + 1, 2) - 1) * CS * V * S / 8;
     }
 
+    // ── DMAX WITH MAX ORDERS CAP (có lot scaling) ──
+    // Khi cap tại maxOrdersLimit: sau khi mở đủ số lệnh, không mở thêm
+    // Loss vẫn tăng tuyến tính, dùng getLotForOrder(i) để tính đúng với k_lot
+    function totalLossAtD_capped(D) {
+        const numOrders = Math.min(Math.floor(D / stepUSD) + 1, maxOrdersLimit);
+        let loss = 0;
+        for (let i = 0; i < numOrders; i++) {
+            const orderOpenD = i * stepUSD;
+            loss += getLotForOrder(i) * (D - orderOpenD) * CS;
+        }
+        return loss;
+    }
+
+    let dmaxCapped = 0;
+    if (maxOrdersLimit <= 0) {
+        dmaxCapped = capital / (baseLot * CS); // no orders = infinite D (cả vốn không mất)
+    } else {
+        let D_upper_c = capital / (baseLot * CS) * 20;
+        let D_lower_c = 0;
+        if (totalLossAtD_capped(0) > capital) {
+            dmaxCapped = 0;
+        } else {
+            for (let iter = 0; iter < 100; iter++) {
+                const D_mid = (D_lower_c + D_upper_c) / 2;
+                if (totalLossAtD_capped(D_mid) < capital) {
+                    D_lower_c = D_mid;
+                } else {
+                    D_upper_c = D_mid;
+                }
+            }
+            dmaxCapped = D_lower_c;
+        }
+    }
+
     // ── UPDATE UI ──
     document.getElementById('c6-dmax').textContent = `${dmax.toFixed(2)} USD`;
     document.getElementById('c6-capital-display').textContent = `${capital.toLocaleString('en-US')} $`;
@@ -671,6 +706,15 @@ function calculateRiskXAU() {
     } else {
         document.getElementById('c6-burnout').textContent = '-- $';
         document.getElementById('c6-burnout-scaled').textContent = '-- $';
+        document.getElementById('c6-burnout-capped').textContent = '-- $';
+    }
+
+    // Dmax capped display
+    document.getElementById('c6-dmax-capped').textContent = `${dmaxCapped.toFixed(2)} USD`;
+    if (entryPrice > 0) {
+        const burnoutCapped = entryPrice - dmaxCapped;
+        document.getElementById('c6-burnout-capped').textContent =
+            `${burnoutCapped.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $`;
     }
 
     // ── EPOCH BREAKDOWN for formula display ──
@@ -713,6 +757,7 @@ function calculateRiskBTC() {
     const kLot = parseFloat(document.getElementById('c7-klot').value) || 1.0;
     const nOrders = parseInt(document.getElementById('c7-n-orders').value) || 50;
     const entryPrice = parseFloat(document.getElementById('c7-entry-price').value) || 0;
+    const maxOrdersLimit = parseInt(document.getElementById('c7-max-orders-limit').value) || 1000;
 
     if (!capital || !stepPoints || !baseLot) return;
 
@@ -785,6 +830,39 @@ function calculateRiskBTC() {
         requiredCapital = (Math.pow((2 * targetDmax / S) + 1, 2) - 1) * CS * V * S / 8;
     }
 
+    // ── DMAX WITH MAX ORDERS CAP (có lot scaling) ──
+    // Dùng getLotForOrder(i) để tính đúng với k_lot
+    function totalLossAtD_capped(D) {
+        const numOrders = Math.min(Math.floor(D / stepUSD) + 1, maxOrdersLimit);
+        let loss = 0;
+        for (let i = 0; i < numOrders; i++) {
+            const orderOpenD = i * stepUSD;
+            loss += getLotForOrder(i) * (D - orderOpenD) * CS;
+        }
+        return loss;
+    }
+
+    let dmaxCapped = 0;
+    if (maxOrdersLimit <= 0) {
+        dmaxCapped = capital / (baseLot * CS);
+    } else {
+        let D_upper_c = capital / (baseLot * CS) * 20;
+        let D_lower_c = 0;
+        if (totalLossAtD_capped(0) > capital) {
+            dmaxCapped = 0;
+        } else {
+            for (let iter = 0; iter < 100; iter++) {
+                const D_mid = (D_lower_c + D_upper_c) / 2;
+                if (totalLossAtD_capped(D_mid) < capital) {
+                    D_lower_c = D_mid;
+                } else {
+                    D_upper_c = D_mid;
+                }
+            }
+            dmaxCapped = D_lower_c;
+        }
+    }
+
     // ── UPDATE UI ──
     document.getElementById('c7-dmax').textContent = `${dmax.toFixed(2)} USD`;
     document.getElementById('c7-capital-display').textContent = `${capital.toLocaleString('en-US')} $`;
@@ -808,6 +886,15 @@ function calculateRiskBTC() {
     } else {
         document.getElementById('c7-burnout').textContent = '-- $';
         document.getElementById('c7-burnout-scaled').textContent = '-- $';
+        document.getElementById('c7-burnout-capped').textContent = '-- $';
+    }
+
+    // Dmax capped display
+    document.getElementById('c7-dmax-capped').textContent = `${dmaxCapped.toFixed(2)} USD`;
+    if (entryPrice > 0) {
+        const burnoutCapped = entryPrice - dmaxCapped;
+        document.getElementById('c7-burnout-capped').textContent =
+            `${burnoutCapped.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $`;
     }
 
     // ── EPOCH BREAKDOWN ──
