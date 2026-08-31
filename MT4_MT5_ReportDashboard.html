@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EA Report Dashboard — Upload & Analyze (Offline)</title>
+<style>
+  :root{
+    --bg:#0b1020; --panel:#141b30; --panel2:#1b2440; --line:#25304f;
+    --txt:#e8ecf6; --muted:#93a0bd; --acc:#4f8cff; --grn:#2fbf71; --red:#ff5c6c;
+    --yel:#ffc94d; --pur:#a97bff; --cyan:#38d6d6;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(180deg,#0b1020,#0d1428);color:var(--txt);
+    font-family:'Segoe UI',Tahoma,Arial,sans-serif;padding:24px}
+  h1{font-size:22px;margin:0}
+  h2{font-size:16px;margin:0 0 14px;color:var(--txt);display:flex;align-items:center;gap:8px}
+  h2::before{content:"";width:4px;height:16px;background:var(--acc);border-radius:2px}
+  .sub{color:var(--muted);font-size:13px;margin-top:4px}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;
+    margin-bottom:22px;border-bottom:1px solid var(--line);padding-bottom:16px}
+  .badge{background:var(--panel2);border:1px solid var(--line);padding:6px 12px;border-radius:20px;
+    font-size:12px;color:var(--muted)}
+  .grid{display:grid;gap:16px}
+  .kpis{grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:20px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .kpi .label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .kpi .val{font-size:26px;font-weight:700;margin-top:6px}
+  .kpi .note{font-size:12px;color:var(--muted);margin-top:4px}
+  .green{color:var(--grn)} .red{color:var(--red)} .yellow{color:var(--yel)} .cyan{color:var(--cyan)}
+  .charts{grid-template-columns:repeat(2,1fr);margin-bottom:20px}
+  .full{grid-column:1/-1}
+  canvas{width:100%;height:280px;display:block;cursor:crosshair}
+  #cEquity{height:340px}
+  #tip{position:fixed;z-index:50;pointer-events:none;display:none;background:#0f1626;border:1px solid var(--line);
+    color:var(--txt);font-size:12px;padding:7px 10px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.4);white-space:nowrap}
+  #tip b{color:#fff}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600;text-transform:uppercase;font-size:11px;letter-spacing:.4px}
+  td:first-child,th:first-child{text-align:left}
+  tr:hover td{background:var(--panel2)}
+  .pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+  .pill.hi{background:rgba(255,92,108,.15);color:var(--red)}
+  .pill.md{background:rgba(255,201,77,.15);color:var(--yel)}
+  .pill.lo{background:rgba(47,191,113,.15);color:var(--grn)}
+  .rec{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+  .rec .card{border-left:3px solid var(--acc)}
+  .rec .card.warn{border-left-color:var(--red)}
+  .rec .card.ok{border-left-color:var(--grn)}
+  .rec h3{margin:0 0 6px;font-size:14px}
+  .rec p{margin:0;color:var(--muted);font-size:13px;line-height:1.5}
+  .bar-inline{height:6px;background:var(--panel2);border-radius:4px;overflow:hidden;margin-top:6px}
+  .bar-inline>i{display:block;height:100%;background:var(--acc)}
+  footer{color:var(--muted);font-size:12px;text-align:center;margin-top:24px;padding-top:16px;border-top:1px solid var(--line)}
+  #drop{border:2px dashed var(--line);border-radius:16px;padding:48px 24px;text-align:center;
+    background:var(--panel);transition:.2s;cursor:pointer;max-width:640px;margin:8vh auto}
+  #drop.drag{border-color:var(--acc);background:var(--panel2)}
+  #drop .ic{font-size:46px}
+  #drop h3{margin:12px 0 6px;font-size:18px}
+  #drop p{color:var(--muted);margin:0;font-size:13px}
+  .btn{display:inline-block;margin-top:16px;background:var(--acc);color:#fff;border:none;
+    padding:10px 22px;border-radius:10px;font-size:14px;cursor:pointer;font-weight:600}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--txt)}
+  .err{color:var(--red);margin-top:12px;font-size:13px;min-height:18px}
+  .hidden{display:none}
+  .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .badge b{color:var(--txt)}
+  @media(max-width:820px){.charts{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div id="uploadView">
+  <div id="drop">
+    <div class="ic">📈</div>
+    <h3>Tải lên báo cáo giao dịch (DetailReport)</h3>
+    <p>Kéo–thả file <b>.htm / .html</b> vào đây, hoặc bấm để chọn.<br>Hỗ trợ cả <b>MT4</b> (Statement) và <b>MT5</b> (Trade History Report). Toàn bộ xử lý chạy ngay trên trình duyệt — không gửi dữ liệu đi đâu.</p>
+    <input id="file" type="file" accept=".htm,.html" class="hidden">
+    <button class="btn" id="pick">Chọn file báo cáo</button>
+    <div class="err" id="err"></div>
+  </div>
+</div>
+
+<div id="dash" class="hidden">
+  <div class="header">
+    <div>
+      <h1>📊 EA Performance Dashboard</h1>
+      <div class="sub" id="stratLine">Phân tích tự động từ báo cáo đã tải lên</div>
+    </div>
+    <div class="toolbar">
+      <span class="badge" id="accBadge"></span>
+      <span class="badge" id="periodBadge"></span>
+      <button class="btn ghost" id="reset">↑ Tải file khác</button>
+    </div>
+  </div>
+
+  <div class="grid kpis" id="kpis"></div>
+
+  <div class="grid charts">
+    <div class="card"><h2>Tần suất giao dịch theo cặp</h2><canvas id="cFreq"></canvas></div>
+    <div class="card"><h2>Lợi nhuận ròng theo cặp</h2><canvas id="cProfit"></canvas></div>
+    <div class="card"><h2>Phân bố cấp Grid (số lệnh mỗi cấp)</h2><canvas id="cGrid"></canvas></div>
+    <div class="card"><h2>Độ dài chuỗi tới khi TP cả rổ</h2><canvas id="cSeries"></canvas></div>
+    <div class="card"><h2>Tiến trình Lot theo cấp Grid</h2><canvas id="cLot"></canvas></div>
+    <div class="card"><h2>Tỷ lệ thắng: Long vs Short</h2><canvas id="cWin"></canvas></div>
+  </div>
+
+  <div class="card full" style="margin-bottom:20px">
+    <h2>Đường cong Equity theo thời gian</h2><canvas id="cEquity"></canvas>
+  </div>
+
+  <div class="card full" style="margin-bottom:20px">
+    <h2>So sánh chi tiết theo cặp tiền</h2>
+    <table><thead><tr>
+      <th>Cặp</th><th>Số lệnh</th><th>Tỷ trọng</th><th>Lot đơn tối đa</th>
+      <th>Rổ sâu nhất</th><th>Net Profit</th><th>Swap</th><th>Mức rủi ro</th>
+    </tr></thead><tbody id="pairBody"></tbody></table>
+  </div>
+
+  <div class="grid charts" style="grid-template-columns:1fr 1fr;margin-bottom:20px">
+    <div class="card"><h2>Các rổ lớn nhất (tổng khối lượng)</h2>
+      <table><thead><tr><th>Cặp</th><th>Số lệnh</th><th>Tổng lot</th><th>Kết quả rổ</th></tr></thead>
+      <tbody id="basketBody"></tbody></table></div>
+    <div class="card"><h2>Chỉ số rủi ro cốt lõi</h2>
+      <table><tbody id="riskBody"></tbody></table></div>
+  </div>
+
+  <div class="card full" style="margin-bottom:20px">
+    <h2>Nhận định & Khuyến nghị (tự động theo dữ liệu)</h2>
+    <div class="rec" id="recBox"></div>
+  </div>
+
+  <footer id="foot"></footer>
+</div>
+
+<script>
+const C={acc:'#4f8cff',grn:'#2fbf71',red:'#ff5c6c',yel:'#ffc94d',pur:'#a97bff',cyan:'#38d6d6'};
+let LAST=null;
+const num=s=>parseFloat(String(s).replace(/\s/g,'').replace(/,/g,''))||0;
+const money=v=>(v>=0?'+':'−')+'$'+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+// MT5 statements are usually UTF-16; MT4 are UTF-8. Detect via BOM / NUL density.
+function decodeBuffer(buf){
+  const b=new Uint8Array(buf);
+  if(b[0]===0xFF&&b[1]===0xFE) return new TextDecoder('utf-16le').decode(b);
+  if(b[0]===0xFE&&b[1]===0xFF) return new TextDecoder('utf-16be').decode(b);
+  if(b[0]===0xEF&&b[1]===0xBB&&b[2]===0xBF) return new TextDecoder('utf-8').decode(b.subarray(3));
+  let z=0,n=Math.min(b.length,4000); for(let i=0;i<n;i++) if(b[i]===0) z++;
+  return new TextDecoder(z>n*0.15?'utf-16le':'utf-8').decode(b);
+}
+
+function parseReport(html){
+  const doc=new DOMParser().parseFromString(html,'text/html');
+  const trades=[]; let sect='';
+  const isDate=s=>/\d{4}\.\d{2}\.\d{2}/.test(s);
+  for(const tr of doc.querySelectorAll('tr')){
+    const raw=tr.textContent.replace(/\u00a0/g,' ').trim();
+    if(/^Positions$/i.test(raw)){sect='mt5';continue;}
+    if(/^(Orders|Deals|Open Positions|Working Orders|Results)$/i.test(raw)){sect='skip';continue;}
+    if(/^Closed Transactions:?$/i.test(raw)){sect='mt4';continue;}
+    if(/^Open Trades:?$/i.test(raw)){sect='skip';continue;}
+    const tds=[...tr.querySelectorAll('td')];
+    if(tds.length<13) continue;
+    const c=tds.map(td=>td.textContent.replace(/\u00a0/g,' ').trim());
+    // MT4: numeric ticket + type + close date
+    if(/^\d{6,}$/.test(c[0]) && (c[2]==='buy'||c[2]==='sell') && isDate(c[8])){
+      const title=tr.querySelector('td[title]')?.getAttribute('title')||'';
+      trades.push({ticket:c[0],open:c[1],type:c[2],size:num(c[3]),item:c[4],
+        close:c[8],comm:num(c[10]),swap:num(c[12]),profit:num(c[13]),sl:c[6],title});
+      continue;
+    }
+    // MT5: Positions section, open+close datetime, comment in hidden cell c[4]
+    if(sect==='mt5' && (c[3]==='buy'||c[3]==='sell') && isDate(c[0]) && isDate(c[9])){
+      trades.push({ticket:c[1],open:c[0],type:c[3],size:num(c[5]),item:c[2],
+        close:c[9],comm:num(c[11]),swap:num(c[12]),profit:num(c[13]),sl:c[7],title:c[4]});
+    }
+  }
+  const tds=[...doc.querySelectorAll('td')];
+  const fv={};
+  for(let i=0;i<tds.length;i++){
+    const t=tds[i].textContent.replace(/\u00a0/g,' ').trim();
+    if(/:$/.test(t)){
+      const prev=i>0?tds[i-1].textContent.trim():'';
+      const key=/^(Largest|Average|Maximum|Maximal)$/.test(prev)?prev+' '+t:t;
+      fv[key]=tds[i+1]?tds[i+1].textContent.replace(/\u00a0/g,' ').trim():'';
+    }
+  }
+  let acc=(doc.querySelector('title')?.textContent||'').trim();
+  const aEl=[...doc.querySelectorAll('td,th')].find(e=>/^Account:?$/i.test(e.textContent.replace(/\u00a0/g,' ').trim()));
+  if(aEl&&aEl.nextElementSibling) acc=aEl.nextElementSibling.textContent.replace(/\u00a0/g,' ').trim();
+  return {trades,fv,acc};
+}
+
+const gridLevel=t=>{const m=/-(\d+)\s*$/.exec(t);return m?+m[1]:null;};
+
+function analyze(P){
+  const T=P.trades;
+  const items={};
+  for(const t of T){
+    const it=items[t.item]||(items[t.item]={item:t.item,n:0,net:0,swap:0,maxLot:0});
+    it.n++; it.net+=t.profit; it.swap+=t.swap; it.maxLot=Math.max(it.maxLot,t.size);
+  }
+  const bmap={};
+  for(const t of T){
+    const k=t.item+'|'+t.close;
+    (bmap[k]||(bmap[k]={item:t.item,close:t.close,n:0,lot:0,profit:0}));
+    bmap[k].n++; bmap[k].lot+=t.size; bmap[k].profit+=t.profit;
+  }
+  const baskets=Object.values(bmap);
+  for(const it of Object.values(items)){
+    const bs=baskets.filter(b=>b.item===it.item);
+    it.maxDepth=Math.max(...bs.map(b=>b.n));
+    it.maxBasketLot=Math.max(...bs.map(b=>b.lot));
+  }
+  const lenDist={};
+  for(const b of baskets) lenDist[b.n]=(lenDist[b.n]||0)+1;
+  const lvlDist={}, lvlSizes={};
+  for(const t of T){const L=gridLevel(t.title); if(L===null)continue;
+    lvlDist[L]=(lvlDist[L]||0)+1; (lvlSizes[L]||(lvlSizes[L]=[])).push(t.size);}
+  const levels=Object.keys(lvlDist).map(Number).sort((a,b)=>a-b);
+  const lotByLevel=levels.map(L=>lvlSizes[L].reduce((a,b)=>a+b,0)/lvlSizes[L].length);
+  const gp=T.filter(t=>t.profit>0).reduce((a,t)=>a+t.profit,0);
+  const gl=T.filter(t=>t.profit<0).reduce((a,t)=>a+t.profit,0);
+  const net=gp+gl, wins=T.filter(t=>t.profit>0).length;
+  const ord=[...T].sort((a,b)=>a.close.localeCompare(b.close)||a.open.localeCompare(b.open));
+  let cl=0,maxCL=0,worstCLsum=0,run=0;
+  for(const t of ord){ if(t.profit<0){cl++;run+=t.profit; if(cl>maxCL)maxCL=cl; if(run<worstCLsum)worstCLsum=run;} else {cl=0;run=0;} }
+  const noSL=T.every(t=>num(t.sl)===0);
+  const balF=num(P.fv['Balance:']);
+  const startBal=balF>0?balF-net:0;
+  let eqv=startBal; const equity=[{label:ord.length?ord[0].open:'',v:eqv}];
+  for(const t of ord){eqv+=t.profit; equity.push({label:t.close,v:eqv});}
+  return {T,fv:P.fv,acc:P.acc,items:Object.values(items),baskets,lenDist,levels,
+    lvlDist,lotByLevel,gp,gl,net,wins,maxCL,worstCLsum,noSL,equity,startBal};
+}
+
+function cp(s){const m=/([\d\s.,]+)\s*\(([\d.]+)%\)/.exec(s||'');return m?{count:num(m[1]),pct:+m[2]}:null;}
+
+function render(A){
+  document.getElementById('uploadView').classList.add('hidden');
+  document.getElementById('dash').classList.remove('hidden');
+  const fv=A.fv;
+  document.getElementById('accBadge').innerHTML='Acc: <b>'+(A.acc.replace(/^Statement:\s*/,'')||'—')+'</b>';
+  const dates=A.T.map(t=>t.close).sort();
+  document.getElementById('periodBadge').textContent='Dữ liệu: '+(dates[0]||'')+' → '+(dates[dates.length-1]||'');
+
+  const bal=fv['Balance:']||'—', eq=fv['Equity:']||'—';
+  const netTxt=fv['Total Net Profit:']||fv['Closed Trade P/L:']||A.net.toFixed(2);
+  const pf=fv['Profit Factor:']||(A.gl!==0?(A.gp/Math.abs(A.gl)).toFixed(2):'—');
+  const wr=cp(fv['Profit Trades (% of total):'])||{count:A.wins,pct:(A.wins/A.T.length*100)};
+  const dd=fv['Maximal Drawdown:']||fv['Balance Drawdown Maximal:']||'—';
+  const total=num(fv['Total Trades:'])||A.T.length;
+  const kpis=[
+    ['Balance','$'+bal,'Equity $'+eq,''],
+    ['Net Profit',money(num(netTxt)),A.T.length+' lệnh · '+A.baskets.length+' rổ','green'],
+    ['Profit Factor',pf,'Gross +'+A.gp.toFixed(0)+' / '+A.gl.toFixed(0),'cyan'],
+    ['Win Rate',wr.pct.toFixed(1)+'%',Math.round(wr.count)+' thắng / '+(A.T.length-Math.round(wr.count))+' thua','green'],
+    ['Max Drawdown',dd,'Chuỗi thua dài nhất '+A.maxCL+' lệnh','yellow'],
+    ['Tổng lệnh đóng',total,A.items.length+' cặp giao dịch','']
+  ];
+  document.getElementById('kpis').innerHTML=kpis.map(k=>
+    '<div class="card kpi"><div class="label">'+k[0]+'</div><div class="val '+k[3]+'">'+k[1]+'</div><div class="note">'+k[2]+'</div></div>').join('');
+
+  document.getElementById('stratLine').textContent=
+    'Chiến lược Grid/Martingale — '+(A.noSL?'KHÔNG có Stop Loss cứng từng lệnh':'có Stop Loss')+
+    ', lot tăng '+(A.lotByLevel.length>1&&A.lotByLevel[A.lotByLevel.length-1]/A.lotByLevel[0]<=3?'chậm (bảo thủ)':'theo cấp grid');
+
+  const items=[...A.items].sort((a,b)=>b.maxLot-a.maxLot||b.n-a.n);
+  const totalN=A.T.length;
+  const maxDepthAll=Math.max(...items.map(i=>i.maxDepth));
+  const maxLotAll=Math.max(...items.map(x=>x.maxLot));
+  document.getElementById('pairBody').innerHTML=items.map(it=>{
+    const riskScore=it.maxLot/maxLotAll*.5+it.maxDepth/maxDepthAll*.5;
+    const pill=riskScore>0.8?'<span class="pill hi">Cao nhất</span>':riskScore>0.6?'<span class="pill hi">Cao</span>':riskScore>0.4?'<span class="pill md">Trung bình</span>':'<span class="pill lo">Thấp</span>';
+    return '<tr><td>'+it.item+'</td><td>'+it.n+'</td><td>'+(it.n/totalN*100).toFixed(1)+'%</td>'+
+      '<td>'+it.maxLot.toFixed(2)+'</td><td>'+it.maxDepth+' lệnh / '+it.maxBasketLot.toFixed(2)+' lot</td>'+
+      '<td class="'+(it.net>=0?'green':'red')+'">'+money(it.net)+'</td>'+
+      '<td class="'+(it.swap>=0?'green':'red')+'">'+it.swap.toFixed(2)+'</td><td>'+pill+'</td></tr>';
+  }).join('');
+
+  const bb=[...A.baskets].sort((a,b)=>b.lot-a.lot).slice(0,6);
+  document.getElementById('basketBody').innerHTML=bb.map(b=>
+    '<tr><td>'+b.item+'</td><td>'+b.n+'</td><td>'+b.lot.toFixed(2)+'</td>'+
+     '<td class="'+(b.profit>=0?'green':'red')+'">'+money(b.profit)+'</td></tr>').join('');
+
+  const worst=[...A.T].sort((a,b)=>a.profit-b.profit)[0];
+  const nWin=A.T.filter(t=>t.profit>0).length, nLoss=A.T.filter(t=>t.profit<0).length;
+  const risk=[
+    ['Lệnh thua đơn lớn nhất','<span class="red">'+money(worst.profit)+' ('+worst.item+')</span>'],
+    ['Chuỗi thua liên tiếp dài nhất','<span class="red">'+A.maxCL+' lệnh ('+money(A.worstCLsum)+')</span>'],
+    ['Lãi TB / lệnh','<span class="green">'+money(A.gp/Math.max(1,nWin))+'</span>'],
+    ['Lỗ TB / lệnh','<span class="red">'+money(A.gl/Math.max(1,nLoss))+'</span>'],
+    ['Stop Loss cứng từng lệnh',A.noSL?'<span class="red">KHÔNG (S/L = 0)</span>':'<span class="green">Có</span>']
+  ];
+  document.getElementById('riskBody').innerHTML=risk.map(r=>'<tr><td>'+r[0]+'</td><td>'+r[1]+'</td></tr>').join('');
+
+  const riskiest=[...items].sort((a,b)=>(b.maxDepth-a.maxDepth)||(b.maxLot-a.maxLot))[0];
+  const negSwap=items.filter(i=>i.swap<-1).sort((a,b)=>a.swap-b.swap);
+  const slowScale=A.lotByLevel.length>1&&A.lotByLevel[A.lotByLevel.length-1]/A.lotByLevel[0]<=3;
+  const recs=[];
+  recs.push(['warn','⚠️ '+riskiest.item+' — điểm yếu tập trung',
+    'Grid sâu nhất ('+riskiest.maxDepth+' cấp), lot đơn lớn nhất ('+riskiest.maxLot.toFixed(2)+'), rổ tối đa '+riskiest.maxBasketLot.toFixed(2)+' lot. Nên đặt trần cấp grid hoặc giảm hệ số lot riêng cho cặp này.']);
+  if(A.noSL) recs.push(['warn','⚠️ Không có Stop Loss toàn cục',
+    'PF '+(A.gp/Math.abs(A.gl)).toFixed(2)+' đẹp nhưng lợi nhuận dựa vào gồng lệnh chờ hồi giá. Cần basket/equity stop-loss để chặn kịch bản trending kéo dài.']);
+  if(negSwap.length) recs.push(['','💱 Cặp tốn swap',
+    negSwap.map(i=>i.item).join(', ')+' âm swap (tổng '+negSwap.reduce((a,i)=>a+i.swap,0).toFixed(2)+'). Cân nhắc giới hạn thời gian giữ rổ qua đêm.']);
+  recs.push([slowScale?'ok':'warn',(slowScale?'✅':'⚠️')+' Kiểu tăng Lot',
+    slowScale?'Lot tăng chậm ('+A.lotByLevel[0].toFixed(2)+'→'+A.lotByLevel[A.lotByLevel.length-1].toFixed(2)+'), KHÔNG nhân đôi hung hãn — điểm tích cực. Không tăng hệ số nhân.'
+    :'Lot tăng nhanh theo cấp grid (x'+(A.lotByLevel[A.lotByLevel.length-1]/A.lotByLevel[0]).toFixed(1)+'). Rủi ro Martingale cao, nên giảm hệ số nhân.']);
+  const spanDays=(new Date(dates[dates.length-1].replace(/\./g,'-'))-new Date(dates[0].replace(/\./g,'-')))/864e5;
+  recs.push(['','📅 Mẫu dữ liệu',
+    'Khoảng '+Math.round(spanDays)+' ngày, '+A.T.length+' lệnh. '+(spanDays<90?'Chưa qua nhiều sự kiện biến động cực đại — chưa đủ kết luận an toàn dài hạn.':'Đủ dài để đánh giá xu hướng ổn định.')]);
+  const allPos=items.every(i=>i.net>=0);
+  recs.push([allPos?'ok':'warn',(allPos?'✅':'⚠️')+' Danh mục cặp',
+    allPos?'Cả '+items.length+' cặp đều dương. Ưu tiên siết rủi ro cho '+riskiest.item+' thay vì loại bỏ.'
+    :'Có cặp âm net ('+items.filter(i=>i.net<0).map(i=>i.item).join(', ')+') — cân nhắc loại bỏ để giảm rủi ro.']);
+  document.getElementById('recBox').innerHTML=recs.map(r=>
+    '<div class="card '+r[0]+'"><h3>'+r[1]+'</h3><p>'+r[2]+'</p></div>').join('');
+
+  document.getElementById('foot').textContent='Dashboard tạo tự động từ file tải lên · Số liệu chỉ mang tính phân tích, không phải khuyến nghị đầu tư.';
+  LAST=A; drawCharts(A);
+}
+
+/* ---------- MINI CANVAS CHART ENGINE (no external library) ---------- */
+const GRID='#25304f', MUTED='#93a0bd', TXT='#e8ecf6', FONT='12px Segoe UI,Tahoma,Arial';
+const tip=document.createElement('div'); tip.id='tip'; document.body.appendChild(tip);
+const fmtFull=v=>(typeof v==='number'?v:parseFloat(v)||0).toLocaleString('en-US',{maximumFractionDigits:2});
+function onMove(e){ const cv=e.currentTarget, r=cv.getBoundingClientRect();
+  const g=hitTest(cv,e.clientX-r.left,e.clientY-r.top);
+  if(g){ tip.innerHTML=g.html; tip.style.display='block';
+    let x=e.clientX+14; const tw=tip.offsetWidth; if(x+tw>window.innerWidth-8)x=e.clientX-tw-14;
+    tip.style.left=x+'px'; tip.style.top=(e.clientY+14)+'px'; }
+  else tip.style.display='none'; }
+function hitTest(cv,mx,my){
+  if(cv._pts){ let best=null,bd=26; for(const p of cv._pts){const d=Math.abs(mx-p.x); if(d<bd){bd=d;best=p;}} if(best)return best; }
+  for(const g of (cv._regions||[])){
+    if(g.kind==='rect'){ if(mx>=g.x&&mx<=g.x+g.w&&my>=g.y&&my<=g.y+g.h)return g; }
+    else if(g.kind==='slice'){ const dx=mx-g.cx,dy=my-g.cy,d=Math.hypot(dx,dy);
+      if(d>=g.ir&&d<=g.r){ let a=Math.atan2(dy,dx)+Math.PI/2; while(a<0)a+=2*Math.PI; while(a>=2*Math.PI)a-=2*Math.PI;
+        if(a>=g.s0&&a<g.s1)return g; } } }
+  return null;
+}
+function setup(cv){
+  const dpr=window.devicePixelRatio||1;
+  const w=cv.clientWidth||600, h=cv.clientHeight||280;
+  cv.width=w*dpr; cv.height=h*dpr;
+  const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,w,h);
+  ctx.font=FONT;
+  cv._regions=[]; cv._pts=null;
+  if(!cv._wired){ cv._wired=1; cv.addEventListener('mousemove',onMove);
+    cv.addEventListener('mouseleave',()=>{tip.style.display='none';}); }
+  return {ctx,w,h};
+}
+function roundRect(ctx,x,y,w,h,r){ if(h<=0){return;} r=Math.min(r,w/2,h/2);
+  ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+function niceMax(v){ if(v<=0)return 1; const p=Math.pow(10,Math.floor(Math.log10(v))); const n=v/p;
+  return (n<=1?1:n<=2?2:n<=5?5:10)*p; }
+function fmtShort(v){ const a=Math.abs(v); if(a>=1000)return (v/1000).toFixed(a>=10000?0:1)+'k';
+  if(a>0&&a<1)return (Math.round(v*1000)/1000).toString(); return (Math.round(v*100)/100).toString(); }
+
+function barChart(cv,labels,data,colors,opt){
+  opt=opt||{}; const {ctx,w,h}=setup(cv);
+  const padL=46,padB=28,padT=16,padR=12, plotW=w-padL-padR, plotH=h-padT-padB;
+  const maxV=niceMax(Math.max(0,...data)), minV=Math.min(0,...data), range=(maxV-minV)||1;
+  ctx.textBaseline='middle';
+  for(let i=0;i<=4;i++){ const val=minV+range*i/4, y=padT+plotH-(val-minV)/range*plotH;
+    ctx.strokeStyle=GRID; ctx.globalAlpha=.5; ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(w-padR,y); ctx.stroke(); ctx.globalAlpha=1;
+    ctx.fillStyle=MUTED; ctx.textAlign='right'; ctx.fillText(opt.pct?val.toFixed(0)+'%':fmtShort(val),padL-6,y); }
+  const n=data.length, gap=plotW/n, bw=Math.min(56,gap*0.62);
+  let tot=data.reduce((a,b)=>a+b,0); if(tot<=0)tot=data.reduce((a,b)=>a+Math.abs(b),0)||1;
+  ctx.textAlign='center';
+  for(let i=0;i<n;i++){ const x=padL+gap*i+gap/2;
+    const y0=padT+plotH-(0-minV)/range*plotH, y=padT+plotH-(data[i]-minV)/range*plotH;
+    ctx.fillStyle=colors[i]||C.acc; roundRect(ctx,x-bw/2,Math.min(y,y0),bw,Math.abs(y-y0),4); ctx.fill();
+    ctx.fillStyle=TXT; ctx.textBaseline='bottom'; ctx.fillText(opt.pct?data[i].toFixed(0):fmtShort(data[i]),x,Math.min(y,y0)-2);
+    ctx.fillStyle=MUTED; ctx.textBaseline='top'; ctx.fillText(labels[i],x,padT+plotH+6);
+    const vtxt=opt.pct?data[i].toFixed(1)+'%':fmtFull(data[i]);
+    cv._regions.push({kind:'rect',x:padL+gap*i,y:padT,w:gap,h:plotH,
+      html:'<b>'+(opt.name?opt.name(labels[i]):labels[i])+'</b><br>'+vtxt+' • '+(data[i]/tot*100).toFixed(1)+'%'}); }
+}
+
+function doughnutChart(cv,labels,data,colors){
+  const {ctx,w,h}=setup(cv);
+  const total=data.reduce((a,b)=>a+b,0)||1, legendW=118;
+  const cx=(w-legendW)/2, cy=h/2, r=Math.min(w-legendW,h)/2-6, ir=r*0.58;
+  let a=-Math.PI/2, cum=0;
+  for(let i=0;i<data.length;i++){ const ang=data[i]/total*Math.PI*2;
+    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,a,a+ang); ctx.closePath(); ctx.fillStyle=colors[i]; ctx.fill(); a+=ang;
+    cv._regions.push({kind:'slice',cx,cy,r,ir,s0:cum,s1:cum+ang,
+      html:'<b>'+labels[i]+'</b><br>'+fmtFull(data[i])+' lệnh • '+(data[i]/total*100).toFixed(1)+'%'}); cum+=ang; }
+  ctx.globalCompositeOperation='destination-out'; ctx.beginPath(); ctx.arc(cx,cy,ir,0,Math.PI*2); ctx.fill();
+  ctx.globalCompositeOperation='source-over';
+  ctx.textBaseline='middle'; ctx.textAlign='left'; let ly=cy-labels.length*9;
+  for(let i=0;i<labels.length;i++){ ctx.fillStyle=colors[i]; roundRect(ctx,w-legendW+2,ly-5,10,10,2); ctx.fill();
+    ctx.fillStyle=TXT; ctx.fillText(labels[i]+' ('+(data[i]/total*100).toFixed(0)+'%)',w-legendW+18,ly); ly+=18; }
+}
+
+function lineChart(cv,labels,data,color,opt){
+  opt=opt||{}; const {ctx,w,h}=setup(cv);
+  const padL=52,padB=30,padT=16,padR=14, plotW=w-padL-padR, plotH=h-padT-padB;
+  const maxV=Math.max(...data), minV=Math.min(...data), pad=(maxV-minV)*0.08||1;
+  const hi=maxV+pad, lo=opt.zero?Math.min(0,minV):minV-pad, range=(hi-lo)||1;
+  ctx.textBaseline='middle';
+  for(let i=0;i<=4;i++){ const val=lo+range*i/4, y=padT+plotH-(val-lo)/range*plotH;
+    ctx.strokeStyle=GRID; ctx.globalAlpha=.5; ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(w-padR,y); ctx.stroke(); ctx.globalAlpha=1;
+    ctx.fillStyle=MUTED; ctx.textAlign='right'; ctx.fillText(fmtShort(val),padL-6,y); }
+  const n=data.length, X=i=>padL+(n<=1?plotW/2:plotW*i/(n-1)), Y=v=>padT+plotH-(v-lo)/range*plotH;
+  if(opt.area){ ctx.beginPath(); ctx.moveTo(X(0),Y(data[0]));
+    for(let i=1;i<n;i++)ctx.lineTo(X(i),Y(data[i]));
+    ctx.lineTo(X(n-1),padT+plotH); ctx.lineTo(X(0),padT+plotH); ctx.closePath();
+    const g=ctx.createLinearGradient(0,padT,0,padT+plotH); g.addColorStop(0,opt.area); g.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=g; ctx.fill(); }
+  ctx.strokeStyle=color; ctx.lineWidth=2; ctx.beginPath();
+  for(let i=0;i<n;i++){ const x=X(i),y=Y(data[i]); i?ctx.lineTo(x,y):ctx.moveTo(x,y); } ctx.stroke();
+  if(n<=16){ ctx.fillStyle=color; for(let i=0;i<n;i++){ ctx.beginPath(); ctx.arc(X(i),Y(data[i]),3,0,7); ctx.fill(); } }
+  ctx.fillStyle=MUTED; ctx.textAlign='center'; ctx.textBaseline='top';
+  const ticks=Math.max(2,Math.min(opt.timeTicks||6,n));
+  for(let k=0;k<ticks;k++){ const i=Math.round((n-1)*k/(ticks-1)); ctx.fillText(labels[i]||'',X(i),padT+plotH+6); }
+  cv._pts=[]; const dmax=Math.max(...data.map(Math.abs))||1, first=data[0];
+  for(let i=0;i<n;i++){ const vtxt=opt.money?('$'+fmtFull(data[i])):fmtFull(data[i]);
+    const pctPart=opt.money?((data[i]-first)/(Math.abs(first)||1)*100).toFixed(1)+'% so đầu kỳ':(data[i]/dmax*100).toFixed(0)+'% of max';
+    cv._pts.push({x:X(i),y:Y(data[i]),html:'<b>'+labels[i]+'</b><br>'+vtxt+' • '+pctPart}); }
+  if(opt.yTitle){ ctx.save(); ctx.translate(12,padT+plotH/2); ctx.rotate(-Math.PI/2); ctx.fillStyle=MUTED; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(opt.yTitle,0,0); ctx.restore(); }
+}
+
+function stackedWin(cv,cats,win){
+  const {ctx,w,h}=setup(cv);
+  const padL=42,padB=28,padT=22,padR=12, plotW=w-padL-padR, plotH=h-padT-padB;
+  ctx.textBaseline='middle';
+  for(let i=0;i<=4;i++){ const val=i*25, y=padT+plotH-val/100*plotH;
+    ctx.strokeStyle=GRID; ctx.globalAlpha=.5; ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(w-padR,y); ctx.stroke(); ctx.globalAlpha=1;
+    ctx.fillStyle=MUTED; ctx.textAlign='right'; ctx.fillText(val+'%',padL-6,y); }
+  const n=cats.length, gap=plotW/n, bw=Math.min(90,gap*0.5);
+  ctx.textAlign='center';
+  for(let i=0;i<n;i++){ const x=padL+gap*i+gap/2, wy=padT+plotH-win[i]/100*plotH;
+    ctx.fillStyle=C.grn; ctx.fillRect(x-bw/2,wy,bw,padT+plotH-wy);
+    ctx.fillStyle=C.red; ctx.fillRect(x-bw/2,padT,bw,wy-padT);
+    ctx.fillStyle='#fff'; ctx.textBaseline='middle'; ctx.fillText(win[i].toFixed(1)+'%',x,(wy+padT+plotH)/2);
+    ctx.fillStyle=MUTED; ctx.textBaseline='top'; ctx.fillText(cats[i],x,padT+plotH+6);
+    cv._regions.push({kind:'rect',x:x-bw/2,y:wy,w:bw,h:padT+plotH-wy,html:'<b>'+cats[i]+'</b><br>Thắng '+win[i].toFixed(1)+'%'});
+    cv._regions.push({kind:'rect',x:x-bw/2,y:padT,w:bw,h:Math.max(0,wy-padT),html:'<b>'+cats[i]+'</b><br>Thua '+(100-win[i]).toFixed(1)+'%'}); }
+  ctx.textAlign='left'; ctx.textBaseline='middle';
+  ctx.fillStyle=C.grn; roundRect(ctx,padL,6,10,10,2); ctx.fill(); ctx.fillStyle=MUTED; ctx.fillText('Thắng',padL+14,11);
+  ctx.fillStyle=C.red; roundRect(ctx,padL+64,6,10,10,2); ctx.fill(); ctx.fillStyle=MUTED; ctx.fillText('Thua',padL+78,11);
+}
+
+function drawCharts(A){
+  const palette=[C.acc,C.cyan,C.grn,C.pur,C.yel,C.red];
+  const freqItems=[...A.items].sort((a,b)=>b.n-a.n);
+  doughnutChart(cFreq,freqItems.map(i=>i.item),freqItems.map(i=>i.n),freqItems.map((_,i)=>palette[i%palette.length]));
+
+  const profItems=[...A.items].sort((a,b)=>b.net-a.net);
+  barChart(cProfit,profItems.map(i=>i.item),profItems.map(i=>+i.net.toFixed(2)),profItems.map(i=>i.net>=0?C.grn:C.red));
+
+  barChart(cGrid,A.levels.map(l=>'L'+l),A.levels.map(l=>A.lvlDist[l]),A.levels.map(()=>C.acc),{name:l=>'Cấp grid '+l});
+
+  const maxLen=Math.max(...Object.keys(A.lenDist).map(Number));
+  const labels=[],data=[],cols=[];
+  for(let L=1;L<=Math.min(maxLen,10);L++){labels.push(''+L);data.push(A.lenDist[L]||0);cols.push(L<=2?C.grn:L<=4?C.cyan:L<=7?C.yel:C.red);}
+  if(maxLen>10){let s=0;for(let L=11;L<=maxLen;L++)s+=A.lenDist[L]||0;labels.push('11+');data.push(s);cols.push(C.red);}
+  barChart(cSeries,labels,data,cols,{name:l=>'Chuỗi '+l+' lệnh'});
+
+  lineChart(cLot,A.levels.map(l=>'L'+l),A.lotByLevel.map(v=>+v.toFixed(3)),C.pur,{area:'rgba(169,123,255,.35)',yTitle:'Lot size',zero:true,timeTicks:A.levels.length});
+
+  const shortCP=cp(A.fv['Short Positions (won %):']||A.fv['Short Trades (won %):']),longCP=cp(A.fv['Long Positions (won %):']||A.fv['Long Trades (won %):']);
+  let longW,shortW;
+  if(longCP&&shortCP){longW=longCP.pct;shortW=shortCP.pct;}
+  else{const lng=A.T.filter(t=>t.type==='buy'),sht=A.T.filter(t=>t.type==='sell');
+    longW=lng.length?lng.filter(t=>t.profit>0).length/lng.length*100:0;
+    shortW=sht.length?sht.filter(t=>t.profit>0).length/sht.length*100:0;}
+  stackedWin(cWin,['Long (Buy)','Short (Sell)'],[longW,shortW]);
+
+  lineChart(cEquity,A.equity.map(p=>String(p.label).slice(0,10)),A.equity.map(p=>+p.v.toFixed(2)),C.grn,
+    {area:'rgba(47,191,113,.30)',yTitle:A.startBal>0?'Equity ($)':'P/L cộng dồn ($)',timeTicks:6,money:true});
+}
+
+function handleFile(file){
+  const err=document.getElementById('err'); err.textContent='';
+  if(!file){return;}
+  if(!/\.(html?|htm)$/i.test(file.name)){err.textContent='Vui lòng chọn file .htm hoặc .html';return;}
+  const rd=new FileReader();
+  rd.onload=e=>{
+    try{
+      const P=parseReport(decodeBuffer(e.target.result));
+      if(!P.trades.length){err.textContent='Không tìm thấy giao dịch. Hỗ trợ MT4 (Closed Transactions) và MT5 (Positions).';return;}
+      render(analyze(P));
+    }catch(ex){err.textContent='Lỗi xử lý: '+ex.message;console.error(ex);}
+  };
+  rd.onerror=()=>err.textContent='Không đọc được file.';
+  rd.readAsArrayBuffer(file);
+}
+const fileInput=document.getElementById('file'),drop=document.getElementById('drop');
+document.getElementById('pick').onclick=e=>{e.stopPropagation();fileInput.click();};
+drop.onclick=()=>fileInput.click();
+fileInput.onchange=e=>handleFile(e.target.files[0]);
+['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('drag');}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag');}));
+drop.addEventListener('drop',e=>handleFile(e.dataTransfer.files[0]));
+document.getElementById('reset').onclick=()=>{
+  document.getElementById('dash').classList.add('hidden');
+  document.getElementById('uploadView').classList.remove('hidden');
+  fileInput.value='';
+};
+let rz; window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{if(LAST)drawCharts(LAST);},150);});
+</script>
+</body>
+</html>

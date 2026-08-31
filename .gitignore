@@ -1,0 +1,10 @@
+# Secrets
+API.txt
+
+# OS
+.DS_Store
+**/.DS_Store
+
+# Editor / tooling
+.vscode/
+.kilo/
