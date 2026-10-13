@@ -75,7 +75,7 @@
   <div id="drop">
     <div class="ic">📈</div>
     <h3>Tải lên báo cáo giao dịch (DetailReport)</h3>
-    <p>Kéo–thả file <b>.htm / .html</b> vào đây, hoặc bấm để chọn.<br>Hỗ trợ cả <b>MT4</b> (Statement) và <b>MT5</b> (Trade History Report). Toàn bộ xử lý chạy ngay trên trình duyệt — không gửi dữ liệu đi đâu.</p>
+    <p>Kéo–thả file <b>.htm / .html</b> vào đây, hoặc bấm để chọn.<br>Hỗ trợ <b>MT4</b> (Statement &amp; Strategy Tester) và <b>MT5</b> (Trade History Report). Toàn bộ xử lý chạy ngay trên trình duyệt — không gửi dữ liệu đi đâu.</p>
     <input id="file" type="file" accept=".htm,.html" class="hidden">
     <button class="btn" id="pick">Chọn file báo cáo</button>
     <div class="err" id="err"></div>
@@ -152,7 +152,7 @@ function decodeBuffer(buf){
 
 function parseReport(html){
   const doc=new DOMParser().parseFromString(html,'text/html');
-  const trades=[]; let sect='';
+  const trades=[]; let sect=''; let ordMap={},symbol='';
   const isDate=s=>/\d{4}\.\d{2}\.\d{2}/.test(s);
   for(const tr of doc.querySelectorAll('tr')){
     const raw=tr.textContent.replace(/\u00a0/g,' ').trim();
@@ -161,8 +161,23 @@ function parseReport(html){
     if(/^Closed Transactions:?$/i.test(raw)){sect='mt4';continue;}
     if(/^Open Trades:?$/i.test(raw)){sect='skip';continue;}
     const tds=[...tr.querySelectorAll('td')];
-    if(tds.length<13) continue;
     const c=tds.map(td=>td.textContent.replace(/\u00a0/g,' ').trim());
+    if(tds.length<13){
+      // MT4 Strategy Tester report: bảng "# | Time | Type | Order | Size | Price | S/L | T/P | Profit | Balance"
+      if(c[0]==='Symbol'&&c[1]) symbol=c[1].split(/\s+/)[0];
+      if(c[0]==='#'&&c[3]==='Order'&&c[9]==='Balance'){sect='tester';ordMap={};continue;}
+      if(sect==='tester'&&isDate(c[1])){
+        const ty=c[2],o=(ordMap[c[3]]||(ordMap[c[3]]={}));
+        if(/^(buy|sell)(\s+(limit|stop))?$/.test(ty)){ // event mở lệnh
+          o.open={t:c[1],type:ty.split(' ')[0],size:num(c[4])};
+        }else if(ty==='modify'&&num(c[6])>0){ // giữ SL cuối cùng (trailing) của order
+          o.sl=c[6];
+        }else if(/^(close|s\/l|t\/p)/.test(ty)){ // event đóng lệnh (close, close at stop, s/l, t/p)
+          o.close={t:c[1],profit:num(c[8]),sl:c[6]};
+        }
+      }
+      continue;
+    }
     // MT4: numeric ticket + type + close date
     if(/^\d{6,}$/.test(c[0]) && (c[2]==='buy'||c[2]==='sell') && isDate(c[8])){
       const title=tr.querySelector('td[title]')?.getAttribute('title')||'';
@@ -176,6 +191,14 @@ function parseReport(html){
         close:c[9],comm:num(c[11]),swap:num(c[12]),profit:num(c[13]),sl:c[7],title:c[4]});
     }
   }
+  // MT4 Strategy Tester: ghép event mở/đóng theo Order (event đóng có thể đứng trước event mở trong file)
+  if(sect==='tester'){
+    for(const ord in ordMap){ const o=ordMap[ord];
+      if(o.open&&o.close) trades.push({ticket:ord,open:o.open.t,type:o.open.type,size:o.open.size,
+        item:symbol,close:o.close.t,comm:0,swap:0,profit:o.close.profit,
+        sl:num(o.close.sl)>0?o.close.sl:o.sl,title:''});
+    }
+  }
   const tds=[...doc.querySelectorAll('td')];
   const fv={};
   for(let i=0;i<tds.length;i++){
@@ -185,6 +208,16 @@ function parseReport(html){
       const key=/^(Largest|Average|Maximum|Maximal)$/.test(prev)?prev+' '+t:t;
       fv[key]=tds[i+1]?tds[i+1].textContent.replace(/\u00a0/g,' ').trim():'';
     }
+  }
+  // MT4 Strategy Tester: label tóm tắt không có dấu ':' cuối — map sang key fv mà dashboard dùng
+  const TMAP={'Total net profit':'Total Net Profit:','Profit factor':'Profit Factor:',
+    'Total trades':'Total Trades:','Profit trades (% of total)':'Profit Trades (% of total):',
+    'Loss trades (% of total)':'Loss Trades (% of total):','Maximal drawdown':'Maximal Drawdown:',
+    'Absolute drawdown':'Absolute Drawdown:','Short positions (won %)':'Short Positions (won %):',
+    'Long positions (won %)':'Long Positions (won %):'};
+  for(let i=0;i<tds.length-1;i++){
+    const t=tds[i].textContent.replace(/\u00a0/g,' ').trim();
+    if(TMAP[t]&&!fv[TMAP[t]]) fv[TMAP[t]]=tds[i+1].textContent.replace(/\u00a0/g,' ').trim();
   }
   let acc=(doc.querySelector('title')?.textContent||'').trim();
   const aEl=[...doc.querySelectorAll('td,th')].find(e=>/^Account:?$/i.test(e.textContent.replace(/\u00a0/g,' ').trim()));
@@ -483,7 +516,7 @@ function handleFile(file){
   rd.onload=e=>{
     try{
       const P=parseReport(decodeBuffer(e.target.result));
-      if(!P.trades.length){err.textContent='Không tìm thấy giao dịch. Hỗ trợ MT4 (Closed Transactions) và MT5 (Positions).';return;}
+      if(!P.trades.length){err.textContent='Không tìm thấy giao dịch. Hỗ trợ MT4 (Closed Transactions), MT4 Strategy Tester và MT5 (Positions).';return;}
       render(analyze(P));
     }catch(ex){err.textContent='Lỗi xử lý: '+ex.message;console.error(ex);}
   };
