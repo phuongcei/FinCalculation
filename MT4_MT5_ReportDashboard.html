@@ -237,8 +237,8 @@ function analyze(P){
   const bmap={};
   for(const t of T){
     const k=t.item+'|'+t.close;
-    (bmap[k]||(bmap[k]={item:t.item,close:t.close,n:0,lot:0,profit:0}));
-    bmap[k].n++; bmap[k].lot+=t.size; bmap[k].profit+=t.profit;
+    (bmap[k]||(bmap[k]={item:t.item,close:t.close,n:0,lot:0,profit:0,ts:[]}));
+    bmap[k].n++; bmap[k].lot+=t.size; bmap[k].profit+=t.profit; bmap[k].ts.push(t);
   }
   const baskets=Object.values(bmap);
   for(const it of Object.values(items)){
@@ -248,9 +248,20 @@ function analyze(P){
   }
   const lenDist={};
   for(const b of baskets) lenDist[b.n]=(lenDist[b.n]||0)+1;
+  // Cấp grid: ưu tiên trích từ comment lệnh (hậu tố "-N", vd "GU-2") trong title/comment của báo cáo
   const lvlDist={}, lvlSizes={};
+  const addLvl=(L,size)=>{lvlDist[L]=(lvlDist[L]||0)+1;(lvlSizes[L]||(lvlSizes[L]=[])).push(size);};
+  let hasLvlComment=false;
   for(const t of T){const L=gridLevel(t.title); if(L===null)continue;
-    lvlDist[L]=(lvlDist[L]||0)+1; (lvlSizes[L]||(lvlSizes[L]=[])).push(t.size);}
+    hasLvlComment=true; addLvl(L,t.size);}
+  // Fallback: file không có comment cấp grid (vd MT4 Strategy Tester) — suy cấp từ vị trí lệnh trong rổ
+  // (rổ = nhóm lệnh cùng symbol đóng cùng thời điểm; lệnh mở trước = cấp nhỏ hơn)
+  if(!hasLvlComment){
+    for(const b of baskets){
+      b.ts.sort((a,c)=>a.open.localeCompare(c.open)||((+a.ticket||0)-(+c.ticket||0)))
+        .forEach((t,i)=>addLvl(i+1,t.size));
+    }
+  }
   const levels=Object.keys(lvlDist).map(Number).sort((a,b)=>a-b);
   const lotByLevel=levels.map(L=>lvlSizes[L].reduce((a,b)=>a+b,0)/lvlSizes[L].length);
   const gp=T.filter(t=>t.profit>0).reduce((a,t)=>a+t.profit,0);
@@ -390,6 +401,9 @@ function roundRect(ctx,x,y,w,h,r){ if(h<=0){return;} r=Math.min(r,w/2,h/2);
   ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
 function niceMax(v){ if(v<=0)return 1; const p=Math.pow(10,Math.floor(Math.log10(v))); const n=v/p;
   return (n<=1?1:n<=2?2:n<=5?5:10)*p; }
+function noDataMsg(cv,msg){ const {ctx,w,h}=setup(cv);
+  ctx.fillStyle=MUTED; ctx.font=FONT; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(msg,w/2,h/2); }
 function fmtShort(v){ const a=Math.abs(v); if(a>=1000)return (v/1000).toFixed(a>=10000?0:1)+'k';
   if(a>0&&a<1)return (Math.round(v*1000)/1000).toString(); return (Math.round(v*100)/100).toString(); }
 
@@ -486,7 +500,8 @@ function drawCharts(A){
   const profItems=[...A.items].sort((a,b)=>b.net-a.net);
   barChart(cProfit,profItems.map(i=>i.item),profItems.map(i=>+i.net.toFixed(2)),profItems.map(i=>i.net>=0?C.grn:C.red));
 
-  barChart(cGrid,A.levels.map(l=>'L'+l),A.levels.map(l=>A.lvlDist[l]),A.levels.map(()=>C.acc),{name:l=>'Cấp grid '+l});
+  if(A.levels.length) barChart(cGrid,A.levels.map(l=>'L'+l),A.levels.map(l=>A.lvlDist[l]),A.levels.map(()=>C.acc),{name:l=>'Cấp grid '+l});
+  else noDataMsg(cGrid,'Không có dữ liệu cấp grid trong file này');
 
   const maxLen=Math.max(...Object.keys(A.lenDist).map(Number));
   const labels=[],data=[],cols=[];
@@ -494,7 +509,8 @@ function drawCharts(A){
   if(maxLen>10){let s=0;for(let L=11;L<=maxLen;L++)s+=A.lenDist[L]||0;labels.push('11+');data.push(s);cols.push(C.red);}
   barChart(cSeries,labels,data,cols,{name:l=>'Chuỗi '+l+' lệnh'});
 
-  lineChart(cLot,A.levels.map(l=>'L'+l),A.lotByLevel.map(v=>+v.toFixed(3)),C.pur,{area:'rgba(169,123,255,.35)',yTitle:'Lot size',zero:true,timeTicks:A.levels.length});
+  if(A.levels.length) lineChart(cLot,A.levels.map(l=>'L'+l),A.lotByLevel.map(v=>+v.toFixed(3)),C.pur,{area:'rgba(169,123,255,.35)',yTitle:'Lot size',zero:true,timeTicks:A.levels.length});
+  else noDataMsg(cLot,'Không có dữ liệu cấp grid trong file này');
 
   const shortCP=cp(A.fv['Short Positions (won %):']||A.fv['Short Trades (won %):']),longCP=cp(A.fv['Long Positions (won %):']||A.fv['Long Trades (won %):']);
   let longW,shortW;
