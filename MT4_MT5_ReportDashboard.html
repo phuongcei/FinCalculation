@@ -43,6 +43,7 @@
   #h2tip .t{color:var(--acc);font-weight:700;margin:0 0 6px}
   #h2tip p{margin:6px 0 0}
   #h2tip b{color:#fff}
+  .durstat{font-size:12px;color:var(--muted);margin:-6px 0 10px}
   table{width:100%;border-collapse:collapse;font-size:13px}
   th,td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--line)}
   th{color:var(--muted);font-weight:600;text-transform:uppercase;font-size:11px;letter-spacing:.4px}
@@ -109,7 +110,7 @@
     <div class="card"><h2>Tần suất giao dịch theo cặp</h2><canvas id="cFreq"></canvas></div>
     <div class="card"><h2>Lợi nhuận ròng theo cặp</h2><canvas id="cProfit"></canvas></div>
     <div class="card"><h2 class="qhelp" tabindex="0">Phân bố cấp Grid (số lệnh mỗi cấp)</h2><canvas id="cGrid"></canvas></div>
-    <div class="card"><h2 class="qhelp" tabindex="0">Độ dài chuỗi tới khi TP cả rổ</h2><canvas id="cSeries"></canvas></div>
+    <div class="card"><h2 class="qhelp" tabindex="0">Độ dài chuỗi tới khi TP cả rổ</h2><div class="durstat" id="durLine"></div><canvas id="cSeries"></canvas></div>
     <div class="card"><h2 class="qhelp" tabindex="0">Tiến trình Lot theo cấp Grid</h2><canvas id="cLot"></canvas></div>
     <div class="card"><h2>Tỷ lệ thắng: Long vs Short</h2><canvas id="cWin"></canvas></div>
   </div>
@@ -234,6 +235,14 @@ function parseReport(html){
 }
 
 const gridLevel=t=>{const m=/-(\d+)\s*$/.exec(t);return m?+m[1]:null;};
+const parseDT=s=>{const m=/^(\d{4})\.(\d{2})\.(\d{2}) (\d{2}):(\d{2})/.exec(s||'');
+  return m?new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5]):null;};
+const fmtDur=ms=>{ if(ms==null||isNaN(ms)||ms<0)return'—';
+  const mm=Math.round(ms/6e4);
+  if(mm<60)return mm+' phút';
+  const h=Math.floor(mm/60);
+  if(h<24)return h+'h '+(mm%60)+'m';
+  return Math.floor(h/24)+' ngày '+(h%24)+'h';};
 
 function analyze(P){
   const T=P.trades;
@@ -249,6 +258,18 @@ function analyze(P){
     bmap[k].n++; bmap[k].lot+=t.size; bmap[k].profit+=t.profit; bmap[k].ts.push(t);
   }
   const baskets=Object.values(bmap);
+  const durs=[],durByLen={};
+  for(const b of baskets){
+    const c=parseDT(b.close);
+    const opens=b.ts.map(t=>parseDT(t.open)).filter(Boolean);
+    if(!c||!opens.length)continue;
+    b.durMs=c-Math.min(...opens.map(d=>+d));
+    durs.push(b.durMs);
+    (durByLen[b.n]||(durByLen[b.n]=[])).push(b.durMs);
+  }
+  const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+  const durByLenAvg={};for(const n in durByLen)durByLenAvg[n]=avg(durByLen[n]);
+  const durStats=durs.length?{min:Math.min(...durs),avg:avg(durs),max:Math.max(...durs),n:durs.length}:null;
   for(const it of Object.values(items)){
     const bs=baskets.filter(b=>b.item===it.item);
     it.maxDepth=Math.max(...bs.map(b=>b.n));
@@ -284,7 +305,8 @@ function analyze(P){
   let eqv=startBal; const equity=[{label:ord.length?ord[0].open:'',v:eqv}];
   for(const t of ord){eqv+=t.profit; equity.push({label:t.close,v:eqv});}
   return {T,fv:P.fv,acc:P.acc,items:Object.values(items),baskets,lenDist,levels,
-    lvlDist,lotByLevel,gp,gl,net,wins,maxCL,worstCLsum,noSL,equity,startBal};
+    lvlDist,lotByLevel,gp,gl,net,wins,maxCL,worstCLsum,noSL,equity,startBal,
+    durStats,durByLenAvg,durByLen};
 }
 
 function cp(s){const m=/([\d\s.,]+)\s*\(([\d.]+)%\)/.exec(s||'');return m?{count:num(m[1]),pct:+m[2]}:null;}
@@ -371,6 +393,9 @@ function render(A){
     '<div class="card '+r[0]+'"><h3>'+r[1]+'</h3><p>'+r[2]+'</p></div>').join('');
 
   document.getElementById('foot').textContent='Dashboard tạo tự động từ file tải lên · Số liệu chỉ mang tính phân tích, không phải khuyến nghị đầu tư.';
+  const dl=document.getElementById('durLine');
+  dl.textContent=A.durStats?('Thời gian sống rổ ('+A.durStats.n+' rổ): ngắn nhất '+fmtDur(A.durStats.min)
+    +' · trung bình '+fmtDur(A.durStats.avg)+' · dài nhất '+fmtDur(A.durStats.max)):'';
   LAST=A; drawCharts(A);
 }
 
@@ -433,7 +458,8 @@ function barChart(cv,labels,data,colors,opt){
     ctx.fillStyle=MUTED; ctx.textBaseline='top'; ctx.fillText(labels[i],x,padT+plotH+6);
     const vtxt=opt.pct?data[i].toFixed(1)+'%':fmtFull(data[i]);
     cv._regions.push({kind:'rect',x:padL+gap*i,y:padT,w:gap,h:plotH,
-      html:'<b>'+(opt.name?opt.name(labels[i]):labels[i])+'</b><br>'+vtxt+' • '+(data[i]/tot*100).toFixed(1)+'%'}); }
+      html:'<b>'+(opt.name?opt.name(labels[i]):labels[i])+'</b><br>'+vtxt+' • '+(data[i]/tot*100).toFixed(1)+'%'
+        +(opt.tip?'<br>'+opt.tip(i):'')}); }
 }
 
 function doughnutChart(cv,labels,data,colors){
@@ -515,7 +541,12 @@ function drawCharts(A){
   const labels=[],data=[],cols=[];
   for(let L=1;L<=Math.min(maxLen,10);L++){labels.push(''+L);data.push(A.lenDist[L]||0);cols.push(L<=2?C.grn:L<=4?C.cyan:L<=7?C.yel:C.red);}
   if(maxLen>10){let s=0;for(let L=11;L<=maxLen;L++)s+=A.lenDist[L]||0;labels.push('11+');data.push(s);cols.push(C.red);}
-  barChart(cSeries,labels,data,cols,{name:l=>'Chuỗi '+l+' lệnh'});
+  barChart(cSeries,labels,data,cols,{name:l=>'Chuỗi '+l+' lệnh',tip:i=>{
+    const lbl=labels[i];let v=null;
+    if(lbl==='11+'){const vals=Object.keys(A.durByLen).filter(n=>+n>=11).flatMap(n=>A.durByLen[n]);
+      if(vals.length)v=vals.reduce((x,y)=>x+y,0)/vals.length;}
+    else v=A.durByLenAvg[+lbl];
+    return v!=null?'Sống TB: '+fmtDur(v):'';}});
 
   if(A.levels.length) lineChart(cLot,A.levels.map(l=>'L'+l),A.lotByLevel.map(v=>+v.toFixed(3)),C.pur,{area:'rgba(169,123,255,.35)',yTitle:'Lot size',zero:true,timeTicks:A.levels.length});
   else noDataMsg(cLot,'Không có dữ liệu cấp grid trong file này');
@@ -572,7 +603,7 @@ const H2HELP={
     '<p><b>Chart này trả lời câu hỏi gì?</b><br>'+
     '"Có bao nhiêu rổ (vòng giao dịch) kết thúc ở đúng độ sâu n lệnh?" — phân phối độ sâu cuối cùng của từng rổ sau khi cả rổ được đóng. Đơn vị đếm là <b>rổ</b>, không phải lệnh rời rạc.</p>'+
     '<p><b>Khi nào dùng?</b><br>'+
-    'Khi muốn cảm nhận nhịp giao dịch: tỷ lệ rổ TP ngay ở lệnh đầu so với rổ phải kéo dài nhiều lệnh — đánh giá tốc độ xoay vòng vốn, độ hiếm của rổ sâu, và rủi ro khi nhiều rổ sâu xuất hiện dồn dập ở cùng giai đoạn thị trường.</p>',
+    'Khi muốn cảm nhận nhịp giao dịch: tỷ lệ rổ TP ngay ở lệnh đầu so với rổ phải kéo dài nhiều lệnh — đánh giá tốc độ xoay vòng vốn, độ hiếm của rổ sâu, và rủi ro khi nhiều rổ sâu xuất hiện dồn dập ở cùng giai đoạn thị trường. Dòng thống kê dưới tiêu đề cho biết thời gian sống rổ ngắn nhất/TB/dài nhất; rê chuột lên từng cột để xem thời gian sống TB theo độ dài chuỗi.</p>',
   cLot:'<div class="t">Tiến trình Lot theo cấp Grid</div>'+
     '<p><b>Chart này trả lời câu hỏi gì?</b><br>'+
     '"Khối lượng lot trung bình của lệnh thay đổi thế nào theo từng cấp grid?" — lot trung bình tại mỗi cấp, cho thấy tốc độ khuếch đại khối lượng khi rổ xuống sâu.</p>'+
