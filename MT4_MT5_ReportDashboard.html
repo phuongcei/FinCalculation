@@ -35,6 +35,14 @@
   #tip{position:fixed;z-index:50;pointer-events:none;display:none;background:#0f1626;border:1px solid var(--line);
     color:var(--txt);font-size:12px;padding:7px 10px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.4);white-space:nowrap}
   #tip b{color:#fff}
+  h2.qhelp{cursor:help;outline:none}
+  h2.qhelp::after{content:"ⓘ";margin-left:7px;font-size:13px;color:var(--muted);font-weight:400}
+  #h2tip{position:fixed;z-index:60;pointer-events:none;display:none;max-width:440px;background:#0f1626;
+    border:1px solid var(--line);color:var(--txt);font-size:13px;line-height:1.55;padding:12px 14px;
+    border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.45);white-space:normal}
+  #h2tip .t{color:var(--acc);font-weight:700;margin:0 0 6px}
+  #h2tip p{margin:6px 0 0}
+  #h2tip b{color:#fff}
   table{width:100%;border-collapse:collapse;font-size:13px}
   th,td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--line)}
   th{color:var(--muted);font-weight:600;text-transform:uppercase;font-size:11px;letter-spacing:.4px}
@@ -100,9 +108,9 @@
   <div class="grid charts">
     <div class="card"><h2>Tần suất giao dịch theo cặp</h2><canvas id="cFreq"></canvas></div>
     <div class="card"><h2>Lợi nhuận ròng theo cặp</h2><canvas id="cProfit"></canvas></div>
-    <div class="card"><h2>Phân bố cấp Grid (số lệnh mỗi cấp)</h2><canvas id="cGrid"></canvas></div>
-    <div class="card"><h2>Độ dài chuỗi tới khi TP cả rổ</h2><canvas id="cSeries"></canvas></div>
-    <div class="card"><h2>Tiến trình Lot theo cấp Grid</h2><canvas id="cLot"></canvas></div>
+    <div class="card"><h2 class="qhelp" tabindex="0">Phân bố cấp Grid (số lệnh mỗi cấp)</h2><canvas id="cGrid"></canvas></div>
+    <div class="card"><h2 class="qhelp" tabindex="0">Độ dài chuỗi tới khi TP cả rổ</h2><canvas id="cSeries"></canvas></div>
+    <div class="card"><h2 class="qhelp" tabindex="0">Tiến trình Lot theo cấp Grid</h2><canvas id="cLot"></canvas></div>
     <div class="card"><h2>Tỷ lệ thắng: Long vs Short</h2><canvas id="cWin"></canvas></div>
   </div>
 
@@ -552,6 +560,50 @@ document.getElementById('reset').onclick=()=>{
   fileInput.value='';
 };
 let rz; window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{if(LAST)drawCharts(LAST);},150);});
+
+/* ---------- HELP TOOLTIP cho tiêu đề chart (hover / giữ trên touch) ---------- */
+const H2HELP={
+  cGrid:'<div class="t">Phân bố cấp Grid (số lệnh mỗi cấp)</div>'+
+    '<p><b>Chart này trả lời câu hỏi gì?</b><br>'+
+    '"Mỗi cấp grid (L1, L2, L3...) đã có bao nhiêu lệnh phải mở trên toàn bộ lịch sử?" — đếm số lệnh theo từng cấp, cộng dồn qua mọi rổ. Một rổ sâu 3 cấp sẽ đóng góp 1 lệnh cho mỗi cấp L1, L2, L3.</p>'+
+    '<p><b>Khi nào dùng?</b><br>'+
+    'Khi muốn biết EA phải gồng sâu ở cấp nào và với tần suất bao nhiêu (vd cấp 2 chỉ chiếm ~12% số rổ nghĩa là 88% rổ không cần DCA). Dùng cùng chart "Tiến trình Lot theo cấp Grid" để tìm nút thắt rủi ro — nơi lot lớn gặp tần suất cao — từ đó cân nhắc đặt trần cấp grid hoặc giảm hệ số lot.</p>',
+  cSeries:'<div class="t">Độ dài chuỗi tới khi TP cả rổ</div>'+
+    '<p><b>Chart này trả lời câu hỏi gì?</b><br>'+
+    '"Có bao nhiêu rổ (vòng giao dịch) kết thúc ở đúng độ sâu n lệnh?" — phân phối độ sâu cuối cùng của từng rổ sau khi cả rổ được đóng. Đơn vị đếm là <b>rổ</b>, không phải lệnh rời rạc.</p>'+
+    '<p><b>Khi nào dùng?</b><br>'+
+    'Khi muốn cảm nhận nhịp giao dịch: tỷ lệ rổ TP ngay ở lệnh đầu so với rổ phải kéo dài nhiều lệnh — đánh giá tốc độ xoay vòng vốn, độ hiếm của rổ sâu, và rủi ro khi nhiều rổ sâu xuất hiện dồn dập ở cùng giai đoạn thị trường.</p>',
+  cLot:'<div class="t">Tiến trình Lot theo cấp Grid</div>'+
+    '<p><b>Chart này trả lời câu hỏi gì?</b><br>'+
+    '"Khối lượng lot trung bình của lệnh thay đổi thế nào theo từng cấp grid?" — lot trung bình tại mỗi cấp, cho thấy tốc độ khuếch đại khối lượng khi rổ xuống sâu.</p>'+
+    '<p><b>Khi nào dùng?</b><br>'+
+    'Khi cần kiểm tra kiểu tăng lot: lot cấp cuối / cấp đầu ≤3 là tăng chậm (bảo thủ, an toàn hơn); vượt mức đó là Martingale nhanh — rủi ro compound cao khi thị trường trending kéo dài. Dùng để quyết định giảm hệ số nhân, trần cấp grid, hoặc giảm lot gốc.</p>'
+};
+const h2tip=document.createElement('div'); h2tip.id='h2tip'; document.body.appendChild(h2tip);
+let h2hideT=null;
+function hideH2Tip(){h2tip.style.display='none';}
+function showH2Tip(el){
+  const cv=el.parentElement.querySelector('canvas'); const h=cv&&H2HELP[cv.id]; if(!h)return;
+  clearTimeout(h2hideT); h2tip.innerHTML=h; h2tip.style.display='block';
+  const r=el.getBoundingClientRect();
+  let x=Math.min(Math.max(8,r.left),window.innerWidth-h2tip.offsetWidth-8);
+  let y=r.bottom+8;
+  if(y+h2tip.offsetHeight>window.innerHeight-8) y=Math.max(8,r.top-h2tip.offsetHeight-8);
+  h2tip.style.left=x+'px'; h2tip.style.top=y+'px';
+}
+const touchOnly=window.matchMedia('(hover: none)').matches;
+for(const el of document.querySelectorAll('h2.qhelp')){
+  el.addEventListener('mouseenter',()=>showH2Tip(el));
+  el.addEventListener('mouseleave',()=>{h2hideT=setTimeout(hideH2Tip,120);});
+  el.addEventListener('focus',()=>showH2Tip(el));
+  el.addEventListener('blur',hideH2Tip);
+  el.addEventListener('touchstart',()=>{el._tp=setTimeout(()=>showH2Tip(el),450);},{passive:true});
+  ['touchend','touchmove','touchcancel'].forEach(ev=>el.addEventListener(ev,()=>clearTimeout(el._tp),{passive:true}));
+  if(touchOnly) el.addEventListener('click',()=>{h2tip.style.display==='block'?hideH2Tip():showH2Tip(el);});
+}
+document.addEventListener('click',e=>{if(!e.target.closest('h2.qhelp'))hideH2Tip();});
+window.addEventListener('scroll',hideH2Tip,true);
+window.addEventListener('resize',hideH2Tip);
 </script>
 </body>
 </html>
