@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="vi" class="slate">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Công Cụ Tính Toán Khoản Vay Đa Chiều</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar for amortization table */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(148, 163, 184, 0.1);
+            border-radius: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.4);
+            border-radius: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.7);
+        }
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            opacity: 1;
+        }
+        .calculated-pulse {
+            animation: softPulse 1.8s infinite ease-in-out;
+        }
+        @keyframes softPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.25); }
+            50% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 min-h-screen transition-colors duration-200">
+
+    <!-- Top Navigation / Header -->
+    <header class="sticky top-0 z-30 backdrop-blur-md bg-white/85 dark:bg-slate-900/85 border-b border-slate-200 dark:border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-emerald-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
+                    <i class="fa-solid fa-calculator text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-bold tracking-tight bg-gradient-to-r from-indigo-600 to-emerald-600 dark:from-indigo-400 dark:to-emerald-400 bg-clip-text text-transparent">
+                        Công Cụ Tính Toán Khoản Vay Đa Chiều
+                    </h1>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                        Tự động suy luận thông số còn thiếu • Lãi suất trên dư nợ giảm dần
+                    </p>
+                </div>
+            </div>
+
+            <!-- Quick Presets & Theme Toggle -->
+            <div class="flex flex-wrap items-center gap-2">
+                <span class="text-xs font-medium text-slate-400 dark:text-slate-500 hidden md:inline mr-1">Kịch bản mẫu:</span>
+                <button onclick="applyPreset(10000, 6, 500, null, 'months', 'annuity')" 
+                    class="text-xs px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-600 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 font-medium transition border border-slate-200/80 dark:border-slate-700">
+                    $10,000 • 6% • $500/tháng
+                </button>
+                <button onclick="applyPreset(10000, 8, 500, null, 'months', 'annuity')" 
+                    class="text-xs px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-600 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 font-medium transition border border-slate-200/80 dark:border-slate-700">
+                    $10,000 • 8% • $500/tháng
+                </button>
+                <button onclick="applyPreset(3000, 8, null, 15, 'payment', 'annuity')" 
+                    class="text-xs px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-600 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 font-medium transition border border-slate-200/80 dark:border-slate-700">
+                    $3,000 • 8% • 15 tháng
+                </button>
+                <button onclick="applyPreset(30000, 6, null, 60, 'payment', 'equal_principal')" 
+                    class="text-xs px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-600 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 font-medium transition border border-slate-200/80 dark:border-slate-700">
+                    $30,000 • 6% • 60 tháng (Gốc đều)
+                </button>
+
+                <button id="themeToggle" onclick="toggleTheme()" title="Đổi giao diện Sáng/Tối"
+                    class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition border border-slate-200 dark:border-slate-700">
+                    <i id="themeIcon" class="fa-solid fa-moon text-sm"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- Guide & Mode Selector Bar -->
+        <section class="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/90 dark:border-slate-800">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 text-xs font-bold">1</span>
+                        <h2 class="text-sm sm:text-base font-bold text-slate-800 dark:text-slate-100">
+                            Chọn đại lượng cần tính tự động <span class="font-normal text-xs text-slate-500 dark:text-slate-400">(hoặc xóa trống 1 ô bất kỳ để hệ thống tự suy luận)</span>
+                        </h2>
+                    </div>
+                </div>
+
+                <!-- 4 Target Mode Pills -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <button onclick="setTargetField('months')" id="mode-btn-months"
+                        class="mode-pill flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all border">
+                        <i class="fa-regular fa-calendar-check"></i>
+                        <span>Tính Số Tháng</span>
+                    </button>
+                    <button onclick="setTargetField('payment')" id="mode-btn-payment"
+                        class="mode-pill flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all border">
+                        <i class="fa-solid fa-hand-holding-dollar"></i>
+                        <span>Tính Tiền Trả/Tháng</span>
+                    </button>
+                    <button onclick="setTargetField('principal')" id="mode-btn-principal"
+                        class="mode-pill flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all border">
+                        <i class="fa-solid fa-sack-dollar"></i>
+                        <span>Tính Khoản Vay</span>
+                    </button>
+                    <button onclick="setTargetField('rate')" id="mode-btn-rate"
+                        class="mode-pill flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all border">
+                        <i class="fa-solid fa-percent"></i>
+                        <span>Tính Lãi Suất</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Primary Grid: Left (Inputs & Method) + Right (Summary & Charts) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- Left Column: 4 Interactive Fields & Loan Method -->
+            <div class="lg:col-span-5 space-y-5">
+                <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-200/90 dark:border-slate-800 space-y-5">
+                    
+                    <!-- Amortization Method Switcher -->
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">
+                            Phương thức trả nợ (Dư nợ giảm dần)
+                        </label>
+                        <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 dark:bg-slate-800/90 rounded-xl">
+                            <button id="method-annuity" onclick="setLoanMethod('annuity')"
+                                class="py-2 px-3 rounded-lg text-xs font-semibold transition-all flex flex-col items-center text-center">
+                                <span>Trả góp đều hàng tháng</span>
+                                <span class="text-[10px] font-normal opacity-75 mt-0.5">(Tổng Gốc + Lãi cố định)</span>
+                            </button>
+                            <button id="method-equal_principal" onclick="setLoanMethod('equal_principal')"
+                                class="py-2 px-3 rounded-lg text-xs font-semibold transition-all flex flex-col items-center text-center">
+                                <span>Trả gốc đều hàng tháng</span>
+                                <span class="text-[10px] font-normal opacity-75 mt-0.5">(Gốc cố định, Lãi giảm dần)</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <hr class="border-slate-100 dark:border-slate-800">
+
+                    <!-- 4 Interconnected Input Cards -->
+                    <div class="space-y-4">
+                        
+                        <!-- 1. Principal (Khoản vay) -->
+                        <div id="card-principal" class="p-3.5 rounded-xl border transition-all relative">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label for="input-principal" class="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-vault text-indigo-500"></i>
+                                    1. Khoản vay ban đầu (USD)
+                                </label>
+                                <button onclick="setTargetField('principal')" id="badge-principal"
+                                    class="text-[11px] px-2 py-0.5 rounded-md font-medium transition">
+                                </button>
+                            </div>
+                            <div class="relative flex items-center">
+                                <span class="absolute left-3.5 text-slate-400 font-semibold text-sm">$</span>
+                                <input type="number" id="input-principal" step="100" min="0" value="10000"
+                                    placeholder="Bỏ trống để tự tính..."
+                                    oninput="handleFieldInput('principal')"
+                                    class="w-full pl-8 pr-20 py-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 font-bold text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                                <div class="absolute right-2 flex items-center gap-1">
+                                    <button onclick="clearSingleField('principal')" title="Xóa trống để tự động tính ô này"
+                                        class="p-1.5 text-slate-400 hover:text-rose-500 transition text-xs">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <input type="range" id="slider-principal" min="500" max="100000" step="500" value="10000"
+                                oninput="handleSliderInput('principal', this.value)"
+                                class="w-full mt-2 accent-indigo-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer">
+                        </div>
+
+                        <!-- 2. Annual Interest Rate (Lãi suất năm) -->
+                        <div id="card-rate" class="p-3.5 rounded-xl border transition-all relative">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label for="input-rate" class="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-chart-line text-amber-500"></i>
+                                    2. Lãi suất năm (%/năm)
+                                </label>
+                                <button onclick="setTargetField('rate')" id="badge-rate"
+                                    class="text-[11px] px-2 py-0.5 rounded-md font-medium transition">
+                                </button>
+                            </div>
+                            <div class="relative flex items-center">
+                                <input type="number" id="input-rate" step="0.1" min="0" max="100" value="8"
+                                    placeholder="Bỏ trống để tự tính..."
+                                    oninput="handleFieldInput('rate')"
+                                    class="w-full pl-3.5 pr-24 py-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 font-bold text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                                <div class="absolute right-2 flex items-center gap-1.5">
+                                    <span id="monthly-rate-hint" class="text-[11px] text-slate-400 font-medium">0.67%/tháng</span>
+                                    <button onclick="clearSingleField('rate')" title="Xóa trống để tự động tính ô này"
+                                        class="p-1.5 text-slate-400 hover:text-rose-500 transition text-xs">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <input type="range" id="slider-rate" min="0" max="25" step="0.25" value="8"
+                                oninput="handleSliderInput('rate', this.value)"
+                                class="w-full mt-2 accent-indigo-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer">
+                        </div>
+
+                        <!-- 3. Monthly Payment (Số tiền trả mỗi tháng) -->
+                        <div id="card-payment" class="p-3.5 rounded-xl border transition-all relative">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label for="input-payment" id="label-payment" class="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-money-bill-transfer text-emerald-500"></i>
+                                    <span>3. Số tiền trả mỗi tháng (USD)</span>
+                                </label>
+                                <button onclick="setTargetField('payment')" id="badge-payment"
+                                    class="text-[11px] px-2 py-0.5 rounded-md font-medium transition">
+                                </button>
+                            </div>
+                            <div class="relative flex items-center">
+                                <span class="absolute left-3.5 text-slate-400 font-semibold text-sm">$</span>
+                                <input type="number" id="input-payment" step="10" min="0" value="500"
+                                    placeholder="Bỏ trống để tự tính..."
+                                    oninput="handleFieldInput('payment')"
+                                    class="w-full pl-8 pr-20 py-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 font-bold text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                                <div class="absolute right-2 flex items-center gap-1">
+                                    <button onclick="clearSingleField('payment')" title="Xóa trống để tự động tính ô này"
+                                        class="p-1.5 text-slate-400 hover:text-rose-500 transition text-xs">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <input type="range" id="slider-payment" min="50" max="5000" step="25" value="500"
+                                oninput="handleSliderInput('payment', this.value)"
+                                class="w-full mt-2 accent-indigo-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer">
+                            <p id="payment-subnote" class="text-[11px] text-slate-500 dark:text-slate-400 mt-1"></p>
+                        </div>
+
+                        <!-- 4. Loan Term (Số tháng trả nợ) -->
+                        <div id="card-months" class="p-3.5 rounded-xl border transition-all relative">
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label for="input-months" class="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-hourglass-half text-purple-500"></i>
+                                    4. Thời gian hoàn thành (Tháng)
+                                </label>
+                                <button onclick="setTargetField('months')" id="badge-months"
+                                    class="text-[11px] px-2 py-0.5 rounded-md font-medium transition">
+                                </button>
+                            </div>
+                            <div class="relative flex items-center">
+                                <input type="number" id="input-months" step="1" min="1" max="600" value="23"
+                                    placeholder="Bỏ trống để tự tính..."
+                                    oninput="handleFieldInput('months')"
+                                    class="w-full pl-3.5 pr-28 py-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 font-bold text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                                <div class="absolute right-2 flex items-center gap-1.5">
+                                    <span id="years-equivalent-hint" class="text-[11px] text-slate-400 font-medium">~1.9 năm</span>
+                                    <button onclick="clearSingleField('months')" title="Xóa trống để tự động tính ô này"
+                                        class="p-1.5 text-slate-400 hover:text-rose-500 transition text-xs">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <input type="range" id="slider-months" min="1" max="120" step="1" value="23"
+                                oninput="handleSliderInput('months', this.value)"
+                                class="w-full mt-2 accent-indigo-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer">
+                        </div>
+
+                    </div>
+
+                    <!-- Dynamic Alert Banner (Shown when monthly payment <= first month interest) -->
+                    <div id="warning-banner" class="hidden p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs space-y-1">
+                        <div class="font-bold flex items-center gap-1.5">
+                            <i class="fa-solid fa-triangle-exclamation text-rose-500"></i>
+                            <span>Cảnh báo: Không thể tất toán khoản vay!</span>
+                        </div>
+                        <p id="warning-text"></p>
+                    </div>
+
+                    <!-- Live Formula Insight Box -->
+                    <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-800 text-xs space-y-1.5">
+                        <div class="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                            <i class="fa-solid fa-wand-magic-sparkles text-indigo-500"></i>
+                            <span>Trạng thái suy luận thông minh:</span>
+                        </div>
+                        <p id="formula-explanation" class="text-slate-600 dark:text-slate-400 leading-relaxed"></p>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Right Column: Summary Cards + Interactive Chart -->
+            <div class="lg:col-span-7 space-y-6">
+
+                <!-- 4 Key Metric Cards -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    
+                    <!-- Highlighted Calculated Result Card -->
+                    <div class="p-4 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-700 text-white shadow-md shadow-indigo-500/15 flex flex-col justify-between">
+                        <div class="flex items-center justify-between">
+                            <span id="hero-result-label" class="text-xs font-medium uppercase tracking-wider text-indigo-100">
+                                KẾT QUẢ TỰ ĐỘNG TÍNH
+                            </span>
+                            <span class="px-2 py-0.5 text-[10px] font-bold uppercase rounded-full bg-white/20 text-white">
+                                Tự động cập nhật
+                            </span>
+                        </div>
+                        <div class="my-2">
+                            <div id="hero-result-value" class="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                                23 tháng
+                            </div>
+                            <p id="hero-result-sub" class="text-xs text-indigo-100/90 mt-1">
+                                22 tháng trả $500.00 + tháng cuối trả $268.73
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Total Interest Paid Card -->
+                    <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                                Tổng tiền lãi phải trả
+                            </span>
+                            <span id="interest-ratio-badge" class="px-2 py-0.5 text-[11px] font-bold rounded-full bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400">
+                                +7.69% so với gốc
+                            </span>
+                        </div>
+                        <div class="my-2">
+                            <div id="summary-total-interest" class="text-2xl sm:text-3xl font-extrabold text-amber-600 dark:text-amber-400">
+                                $768.73
+                            </div>
+                            <p id="summary-interest-range" class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                Lãi tháng đầu: $66.67 • Tháng cuối: $1.78
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Total Payment (Principal + Interest) -->
+                    <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-sm">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                                Tổng thanh toán (Gốc + Lãi)
+                            </span>
+                            <i class="fa-solid fa-scale-balanced text-emerald-500"></i>
+                        </div>
+                        <div id="summary-total-payment" class="text-xl sm:text-2xl font-extrabold text-slate-800 dark:text-slate-100">
+                            $10,768.73
+                        </div>
+                        <!-- Mini stacked progress bar Principal vs Interest -->
+                        <div class="mt-3 space-y-1">
+                            <div class="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden flex">
+                                <div id="bar-principal" class="bg-indigo-500 h-full transition-all duration-300" style="width: 93%"></div>
+                                <div id="bar-interest" class="bg-amber-500 h-full transition-all duration-300" style="width: 7%"></div>
+                            </div>
+                            <div class="flex justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                                <span id="bar-principal-label">Gốc: 92.9%</span>
+                                <span id="bar-interest-label">Lãi: 7.1%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Monthly Breakdown Snapshot -->
+                    <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-sm">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                                Chi tiết kỳ trả hàng tháng
+                            </span>
+                            <i class="fa-regular fa-calendar-days text-indigo-500"></i>
+                        </div>
+                        <div id="summary-monthly-range" class="text-xl sm:text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">
+                            $500.00 / tháng
+                        </div>
+                        <p id="summary-final-month-note" class="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                            Tháng đầu trả gốc $433.33 + lãi $66.67
+                        </p>
+                    </div>
+
+                </div>
+
+                <!-- Visual Interactive Chart Card -->
+                <div class="bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-200/90 dark:border-slate-800">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-800 dark:text-slate-100">
+                                Biểu đồ diễn biến Dư nợ & Lãi tích lũy theo tháng
+                            </h3>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">
+                                Rê chuột hoặc chạm vào biểu đồ để xem chi tiết từng kỳ
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-4 text-xs font-medium">
+                            <span class="flex items-center gap-1.5">
+                                <span class="w-3 h-3 rounded-sm bg-indigo-500 inline-block"></span>
+                                Dư nợ cuối kỳ
+                            </span>
+                            <span class="flex items-center gap-1.5">
+                                <span class="w-3 h-3 rounded-sm bg-emerald-500 inline-block"></span>
+                                Gốc đã trả
+                            </span>
+                            <span class="flex items-center gap-1.5">
+                                <span class="w-3 h-3 rounded-sm bg-amber-500 inline-block"></span>
+                                Lãi tích lũy
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Responsive Canvas Container -->
+                    <div class="relative w-full h-64 sm:h-72">
+                        <canvas id="loanChart" class="w-full h-full cursor-crosshair"></canvas>
+                        <!-- Floating Tooltip -->
+                        <div id="chartTooltip" class="hidden pointer-events-none absolute z-20 bg-slate-900/95 text-white text-xs rounded-xl p-3 shadow-xl border border-slate-700 min-w-[190px]">
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Detailed Amortization Schedule Table -->
+        <section class="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200/90 dark:border-slate-800 overflow-hidden">
+            <div class="p-5 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-base font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                        <i class="fa-solid fa-table-list text-indigo-500"></i>
+                        <span>Bảng Lịch Trả Nợ Chi Tiết Từng Tháng</span>
+                        <span id="table-count-badge" class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-semibold">
+                            22 kỳ
+                        </span>
+                    </h2>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Lãi hàng tháng = Dư nợ đầu kỳ × (Lãi suất năm / 12)
+                    </p>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button onclick="copyTableSummary()" id="copyBtn"
+                        class="text-xs px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold transition flex items-center gap-1.5">
+                        <i class="fa-regular fa-copy"></i>
+                        <span>Sao chép tóm tắt</span>
+                    </button>
+                    <button onclick="exportCSV()"
+                        class="text-xs px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-file-csv"></i>
+                        <span>Tải xuống CSV</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Table Wrapper -->
+            <div class="overflow-x-auto max-h-[480px] overflow-y-auto custom-scrollbar">
+                <table class="w-full text-left border-collapse">
+                    <thead class="sticky top-0 z-10 bg-slate-100/95 dark:bg-slate-800/95 backdrop-blur-sm text-slate-600 dark:text-slate-300 text-xs uppercase tracking-wider">
+                        <tr>
+                            <th class="py-3.5 px-4 font-bold text-center w-20">Tháng</th>
+                            <th class="py-3.5 px-4 font-bold text-right">Dư nợ đầu kỳ</th>
+                            <th class="py-3.5 px-4 font-bold text-right">Tổng trả trong tháng</th>
+                            <th class="py-3.5 px-4 font-bold text-right text-emerald-600 dark:text-emerald-400">Phần trả Gốc</th>
+                            <th class="py-3.5 px-4 font-bold text-right text-amber-600 dark:text-amber-400">Phần trả Lãi</th>
+                            <th class="py-3.5 px-4 font-bold text-right">Lãi tích lũy</th>
+                            <th class="py-3.5 px-4 font-bold text-right">Dư nợ cuối kỳ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="schedule-tbody" class="divide-y divide-slate-200/70 dark:divide-slate-800 text-sm">
+                        <!-- Dynamically populated rows -->
+                    </tbody>
+                    <tfoot id="schedule-tfoot" class="sticky bottom-0 bg-slate-100 dark:bg-slate-800 font-bold text-sm border-t-2 border-slate-300 dark:border-slate-700">
+                        <!-- Dynamically populated totals -->
+                    </tfoot>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 hidden px-4 py-3 rounded-xl bg-slate-900 text-white text-xs font-medium shadow-lg border border-slate-700 flex items-center gap-2">
+        <i class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toast-msg">Đã sao chép kết quả!</span>
+    </div>
+
+    <script>
+        // ============================================================================
+        // STATE MANAGEMENT
+        // ============================================================================
+        const state = {
+            principal: 10000,       // USD
+            rate: 8,                // Annual %
+            payment: 500,           // Monthly Payment USD
+            months: 22,             // Loan Term in Months
+            targetField: 'months',  // 'months' | 'payment' | 'principal' | 'rate'
+            method: 'annuity',      // 'annuity' (Trả đều) | 'equal_principal' (Gốc trả đều)
+            schedule: [],           // Amortization rows
+            isImpossible: false     // Flag if monthly payment <= first month interest
+        };
+
+        // Format currency in USD
+        function fmtUSD(val) {
+            if (val === null || val === undefined || isNaN(val) || !isFinite(val)) return '$0.00';
+            return '$' + Number(val).toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+
+        // Format number cleanly for input fields
+        function roundInput(val, decimals = 2) {
+            if (val === null || val === undefined || isNaN(val) || !isFinite(val)) return '';
+            const factor = Math.pow(10, decimals);
+            return Math.round(val * factor) / factor;
+        }
+
+        // ============================================================================
+        // CORE BIDIRECTIONAL FINANCIAL SOLVER
+        // ============================================================================
+        function solveTargetAndGenerateSchedule() {
+            state.isImpossible = false;
+            const warningBanner = document.getElementById('warning-banner');
+            warningBanner.classList.add('hidden');
+
+            let P = Math.max(0, Number(state.principal) || 0);
+            let annualRate = Math.max(0, Number(state.rate) || 0);
+            let r = annualRate / 100 / 12; // Monthly interest rate
+            let M = Math.max(0, Number(state.payment) || 0);
+            let N = Math.max(1, Number(state.months) || 1);
+
+            // Update monthly rate hint
+            document.getElementById('monthly-rate-hint').textContent = `${(annualRate / 12).toFixed(2)}%/tháng`;
+
+            // ------------------------------------------------------------------------
+            // STEP 1: SOLVE FOR THE LOCKED / TARGET FIELD
+            // ------------------------------------------------------------------------
+            if (state.targetField === 'months') {
+                // Given P, r, M -> Solve for N (Number of Months)
+                if (P <= 0 || M <= 0) {
+                    N = 0;
+                } else if (state.method === 'equal_principal') {
+                    // In Equal Principal mode, if user enters desired first-month max payment M:
+                    // First month interest = P * r. Principal part = M - P*r.
+                    const firstInterest = P * r;
+                    if (M <= firstInterest) {
+                        state.isImpossible = true;
+                        showImpossibleWarning(firstInterest, M);
+                        N = 0;
+                    } else {
+                        const principalPerMonth = M - firstInterest;
+                        N = Math.ceil(P / principalPerMonth);
+                    }
+                } else {
+                    // Annuity / Fixed Monthly Payment M
+                    const firstInterest = P * r;
+                    if (r > 0 && M <= firstInterest) {
+                        state.isImpossible = true;
+                        showImpossibleWarning(firstInterest, M);
+                        N = 0;
+                    } else if (r === 0) {
+                        N = Math.ceil(P / M);
+                    } else {
+                        const exactN = -Math.log(1 - (P * r) / M) / Math.log(1 + r);
+                        N = Math.ceil(exactN - 1e-9);
+                    }
+                }
+                state.months = N;
+                updateInputDOM('months', N);
+
+            } else if (state.targetField === 'payment') {
+                // Given P, r, N -> Solve for M (Monthly Payment)
+                N = Math.max(1, Math.round(N));
+                state.months = N;
+                if (P <= 0) {
+                    M = 0;
+                } else if (state.method === 'equal_principal') {
+                    // First month payment = (P / N) + (P * r)
+                    M = (P / N) + (P * r);
+                } else {
+                    if (r === 0) {
+                        M = P / N;
+                    } else {
+                        M = P * (r * Math.pow(1 + r, N)) / (Math.pow(1 + r, N) - 1);
+                    }
+                }
+                state.payment = M;
+                updateInputDOM('payment', roundInput(M, 2));
+
+            } else if (state.targetField === 'principal') {
+                // Given r, M, N -> Solve for P (Max Loan Principal)
+                N = Math.max(1, Math.round(N));
+                if (M <= 0) {
+                    P = 0;
+                } else if (state.method === 'equal_principal') {
+                    // M = P * (1/N + r) => P = M / (1/N + r)
+                    P = M / ((1 / N) + r);
+                } else {
+                    if (r === 0) {
+                        P = M * N;
+                    } else {
+                        P = M * (Math.pow(1 + r, N) - 1) / (r * Math.pow(1 + r, N));
+                    }
+                }
+                state.principal = P;
+                updateInputDOM('principal', roundInput(P, 2));
+
+            } else if (state.targetField === 'rate') {
+                // Given P, M, N -> Solve for Annual Interest Rate (%)
+                N = Math.max(1, Math.round(N));
+                if (P <= 0 || M <= 0) {
+                    annualRate = 0;
+                } else if (M * N <= P) {
+                    // Total payments <= principal -> 0% interest
+                    annualRate = 0;
+                } else if (state.method === 'equal_principal') {
+                    // M (first month) = P/N + P*r => r = (M - P/N) / P
+                    const reqR = (M - (P / N)) / P;
+                    annualRate = Math.max(0, reqR * 12 * 100);
+                } else {
+                    // Binary search for monthly rate r in [0, 1.0] (up to 1200% APR)
+                    let low = 0;
+                    let high = 1.0;
+                    for (let iter = 0; iter < 60; iter++) {
+                        let mid = (low + high) / 2;
+                        let calcM = P * (mid * Math.pow(1 + mid, N)) / (Math.pow(1 + mid, N) - 1);
+                        if (calcM > M) {
+                            high = mid;
+                        } else {
+                            low = mid;
+                        }
+                    }
+                    r = (low + high) / 2;
+                    annualRate = r * 12 * 100;
+                }
+                r = annualRate / 100 / 12;
+                state.rate = annualRate;
+                updateInputDOM('rate', roundInput(annualRate, 2));
+                document.getElementById('monthly-rate-hint').textContent = `${(annualRate / 12).toFixed(2)}%/tháng`;
+            }
+
+            // Update years equivalent badge
+            const yrs = (state.months / 12).toFixed(1);
+            document.getElementById('years-equivalent-hint').textContent = state.months > 0 ? `~${yrs} năm` : '0 năm';
+
+            // ------------------------------------------------------------------------
+            // STEP 2: BUILD AMORTIZATION SCHEDULE TABLE
+            // ------------------------------------------------------------------------
+            const schedule = [];
+            if (!state.isImpossible && P > 0 && N > 0 && M > 0) {
+                let balance = P;
+                let cumulativeInterest = 0;
+                let cumulativePrincipal = 0;
+                const maxSafeMonths = Math.min(N + 2, 600);
+
+                if (state.method === 'equal_principal') {
+                    const fixedPrincipal = P / N;
+                    for (let m = 1; m <= N && balance > 0.005; m++) {
+                        const startBalance = balance;
+                        const interestPayment = startBalance * r;
+                        let principalPayment = (m === N || fixedPrincipal > startBalance) ? startBalance : fixedPrincipal;
+                        const totalMonthlyPayment = principalPayment + interestPayment;
+                        balance = Math.max(0, startBalance - principalPayment);
+                        cumulativeInterest += interestPayment;
+                        cumulativePrincipal += principalPayment;
+
+                        schedule.push({
+                            month: m,
+                            startBalance,
+                            payment: totalMonthlyPayment,
+                            principal: principalPayment,
+                            interest: interestPayment,
+                            cumulativeInterest,
+                            cumulativePrincipal,
+                            endBalance: balance
+                        });
+                    }
+                } else {
+                    // Annuity / Fixed Monthly Payment M
+                    for (let m = 1; m <= maxSafeMonths && balance > 0.005; m++) {
+                        const startBalance = balance;
+                        const interestPayment = startBalance * r;
+                        let principalPayment = M - interestPayment;
+                        let actualPayment = M;
+
+                        // Last month adjustment if balance is less than normal principal payment
+                        if (principalPayment >= startBalance - 0.005) {
+                            principalPayment = startBalance;
+                            actualPayment = principalPayment + interestPayment;
+                        }
+
+                        balance = Math.max(0, startBalance - principalPayment);
+                        cumulativeInterest += interestPayment;
+                        cumulativePrincipal += principalPayment;
+
+                        schedule.push({
+                            month: m,
+                            startBalance,
+                            payment: actualPayment,
+                            principal: principalPayment,
+                            interest: interestPayment,
+                            cumulativeInterest,
+                            cumulativePrincipal,
+                            endBalance: balance
+                        });
+                    }
+
+                    // Sync actual months count if target was months
+                    if (state.targetField === 'months' && schedule.length > 0) {
+                        state.months = schedule.length;
+                        updateInputDOM('months', state.months);
+                        document.getElementById('years-equivalent-hint').textContent = `~${(state.months / 12).toFixed(1)} năm`;
+                    }
+                }
+            }
+
+            state.schedule = schedule;
+            renderSummaryAndTable();
+            drawChart();
+        }
+
+        function showImpossibleWarning(firstInterest, currentPayment) {
+            const warningBanner = document.getElementById('warning-banner');
+            const warningText = document.getElementById('warning-text');
+            warningBanner.classList.remove('hidden');
+            warningText.innerHTML = `Tiền lãi ngay tháng đầu tiên đã là <strong>${fmtUSD(firstInterest)}</strong>, lớn hơn hoặc bằng mức bạn định trả mỗi tháng (<strong>${fmtUSD(currentPayment)}</strong>). Bạn cần nhập mức trả hàng tháng <strong>lớn hơn ${fmtUSD(Math.ceil(firstInterest + 1))}</strong> để bắt đầu giảm được nợ gốc.`;
+        }
+
+        // Update input & slider DOM only when it's the calculated target field
+        function updateInputDOM(field, value) {
+            const inputEl = document.getElementById(`input-${field}`);
+            const sliderEl = document.getElementById(`slider-${field}`);
+            if (document.activeElement !== inputEl) {
+                inputEl.value = value;
+            }
+            if (sliderEl && value !== '' && isFinite(value)) {
+                sliderEl.value = value;
+            }
+        }
+
+        // ============================================================================
+        // UI INTERACTION HANDLERS
+        // ============================================================================
+        function setTargetField(target) {
+            state.targetField = target;
+
+            const fields = ['principal', 'rate', 'payment', 'months'];
+            fields.forEach(f => {
+                const card = document.getElementById(`card-${f}`);
+                const badge = document.getElementById(`badge-${f}`);
+                const modeBtn = document.getElementById(`mode-btn-${f}`);
+                const input = document.getElementById(`input-${f}`);
+
+                if (f === target) {
+                    // Highlight as Auto-Calculated Target
+                    card.className = 'p-3.5 rounded-xl border-2 border-emerald-500/80 bg-emerald-50/30 dark:bg-emerald-950/20 transition-all relative calculated-pulse';
+                    badge.className = 'text-[11px] px-2.5 py-0.5 rounded-md font-bold bg-emerald-500 text-white shadow-sm flex items-center gap-1';
+                    badge.innerHTML = '<i class="fa-solid fa-bolt text-[10px]"></i> Tự động tính';
+
+                    modeBtn.className = 'mode-pill flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold transition-all border-2 border-indigo-600 bg-indigo-600 text-white shadow-sm shadow-indigo-500/20';
+                    input.classList.add('text-emerald-600', 'dark:text-emerald-400');
+                } else {
+                    // Normal Editable Input
+                    card.className = 'p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 transition-all relative';
+                    badge.className = 'text-[11px] px-2 py-0.5 rounded-md font-medium bg-slate-100 hover:bg-indigo-100 text-slate-500 hover:text-indigo-600 dark:bg-slate-800 dark:text-slate-400 transition';
+                    badge.innerHTML = 'Bấm để tự tính ô này';
+
+                    modeBtn.className = 'mode-pill flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all border border-slate-200 dark:border-slate-700 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300';
+                    input.classList.remove('text-emerald-600', 'dark:text-emerald-400');
+                }
+            });
+
+            solveTargetAndGenerateSchedule();
+        }
+
+        function handleFieldInput(changedField) {
+            const inputEl = document.getElementById(`input-${changedField}`);
+            const rawVal = inputEl.value.trim();
+
+            // Smart behavior: If user clears a field completely, make THAT field the auto-calculated target!
+            if (rawVal === '') {
+                if (state.targetField !== changedField) {
+                    setTargetField(changedField);
+                }
+                return;
+            }
+
+            // If user starts typing directly inside the currently locked target field,
+            // automatically switch the target lock to another logical field so user can type freely
+            if (changedField === state.targetField) {
+                const fallbackOrder = ['months', 'payment', 'principal', 'rate'];
+                const nextTarget = fallbackOrder.find(f => f !== changedField);
+                state.targetField = nextTarget;
+                setTargetField(nextTarget);
+            }
+
+            const numVal = parseFloat(rawVal);
+            if (!isNaN(numVal) && numVal >= 0) {
+                state[changedField] = numVal;
+                const sliderEl = document.getElementById(`slider-${changedField}`);
+                if (sliderEl) sliderEl.value = numVal;
+                solveTargetAndGenerateSchedule();
+            }
+        }
+
+        function handleSliderInput(changedField, val) {
+            if (changedField === state.targetField) {
+                const fallbackOrder = ['months', 'payment', 'principal', 'rate'];
+                const nextTarget = fallbackOrder.find(f => f !== changedField);
+                setTargetField(nextTarget);
+            }
+            const numVal = parseFloat(val);
+            state[changedField] = numVal;
+            document.getElementById(`input-${changedField}`).value = numVal;
+            solveTargetAndGenerateSchedule();
+        }
+
+        function clearSingleField(field) {
+            setTargetField(field);
+            showToast(`Đang tự động tính "${getFieldVietnameseName(field)}" dựa trên 3 thông số còn lại`);
+        }
+
+        function setLoanMethod(method) {
+            state.method = method;
+            const btnAnnuity = document.getElementById('method-annuity');
+            const btnEqualPrincipal = document.getElementById('method-equal_principal');
+            const labelPayment = document.getElementById('label-payment');
+            const paymentSubnote = document.getElementById('payment-subnote');
+
+            if (method === 'annuity') {
+                btnAnnuity.className = 'py-2 px-3 rounded-lg text-xs font-bold transition-all flex flex-col items-center text-center bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm';
+                btnEqualPrincipal.className = 'py-2 px-3 rounded-lg text-xs font-medium transition-all flex flex-col items-center text-center text-slate-500 hover:text-slate-800 dark:text-slate-400';
+                labelPayment.innerHTML = '<i class="fa-solid fa-money-bill-transfer text-emerald-500"></i><span>3. Số tiền trả cố định mỗi tháng (USD)</span>';
+                paymentSubnote.textContent = 'Tổng Gốc + Lãi bằng nhau mỗi tháng.';
+            } else {
+                btnEqualPrincipal.className = 'py-2 px-3 rounded-lg text-xs font-bold transition-all flex flex-col items-center text-center bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-sm';
+                btnAnnuity.className = 'py-2 px-3 rounded-lg text-xs font-medium transition-all flex flex-col items-center text-center text-slate-500 hover:text-slate-800 dark:text-slate-400';
+                labelPayment.innerHTML = '<i class="fa-solid fa-money-bill-transfer text-emerald-500"></i><span>3. Tiền trả tháng đầu cao nhất (USD)</span>';
+                paymentSubnote.textContent = 'Tiền gốc chia đều mỗi tháng, tiền lãi giảm dần theo dư nợ.';
+            }
+
+            solveTargetAndGenerateSchedule();
+        }
+
+        function applyPreset(principal, rate, payment, months, targetField, method) {
+            if (principal !== null) {
+                state.principal = principal;
+                document.getElementById('input-principal').value = principal;
+                document.getElementById('slider-principal').value = principal;
+            }
+            if (rate !== null) {
+                state.rate = rate;
+                document.getElementById('input-rate').value = rate;
+                document.getElementById('slider-rate').value = rate;
+            }
+            if (payment !== null) {
+                state.payment = payment;
+                document.getElementById('input-payment').value = payment;
+                document.getElementById('slider-payment').value = payment;
+            }
+            if (months !== null) {
+                state.months = months;
+                document.getElementById('input-months').value = months;
+                document.getElementById('slider-months').value = months;
+            }
+            setLoanMethod(method || 'annuity');
+            setTargetField(targetField || 'months');
+            showToast('Đã nạp kịch bản mẫu!');
+        }
+
+        function getFieldVietnameseName(field) {
+            const map = {
+                principal: 'Khoản vay ban đầu',
+                rate: 'Lãi suất năm',
+                payment: 'Số tiền trả hàng tháng',
+                months: 'Số tháng hoàn thành'
+            };
+            return map[field] || field;
+        }
+
+        // ============================================================================
+        // RENDER DASHBOARD SUMMARY & AMORTIZATION TABLE
+        // ============================================================================
+        function renderSummaryAndTable() {
+            const schedule = state.schedule;
+            const heroLabel = document.getElementById('hero-result-label');
+            const heroValue = document.getElementById('hero-result-value');
+            const heroSub = document.getElementById('hero-result-sub');
+            const formulaExp = document.getElementById('formula-explanation');
+
+            if (state.isImpossible || schedule.length === 0) {
+                heroLabel.textContent = 'CHƯA THỂ TẤT TOÁN';
+                heroValue.textContent = 'Vô hạn (∞)';
+                heroSub.textContent = 'Vui lòng tăng mức trả hàng tháng hoặc giảm lãi suất.';
+                document.getElementById('summary-total-interest').textContent = '—';
+                document.getElementById('summary-total-payment').textContent = '—';
+                document.getElementById('summary-monthly-range').textContent = '—';
+                document.getElementById('schedule-tbody').innerHTML = `
+                    <tr>
+                        <td colspan="7" class="py-10 text-center text-slate-400">
+                            Không thể lập bảng trả nợ khi số tiền trả hàng tháng không đủ bù tiền lãi phát sinh.
+                        </td>
+                    </tr>`;
+                document.getElementById('schedule-tfoot').innerHTML = '';
+                return;
+            }
+
+            const firstRow = schedule[0];
+            const lastRow = schedule[schedule.length - 1];
+            const totalInterest = lastRow.cumulativeInterest;
+            const totalPrincipal = lastRow.cumulativePrincipal;
+            const totalPayment = totalPrincipal + totalInterest;
+            const interestRatio = totalPrincipal > 0 ? (totalInterest / totalPrincipal) * 100 : 0;
+
+            // Update Hero Card based on currently active targetField
+            if (state.targetField === 'months') {
+                heroLabel.textContent = 'SỐ THÁNG CẦN TRẢ (TỰ ĐỘNG TÍNH)';
+                heroValue.textContent = `${schedule.length} tháng`;
+                if (schedule.length > 1 && Math.abs(lastRow.payment - firstRow.payment) > 0.05 && state.method === 'annuity') {
+                    heroSub.textContent = `${schedule.length - 1} tháng trả ${fmtUSD(firstRow.payment)} + tháng thứ ${schedule.length} tất toán ${fmtUSD(lastRow.payment)}`;
+                } else {
+                    heroSub.textContent = `Tương đương ${(schedule.length / 12).toFixed(2)} năm hoàn thành khoản vay`;
+                }
+                formulaExp.innerHTML = `Khi vay <strong>${fmtUSD(state.principal)}</strong> với lãi suất <strong>${roundInput(state.rate, 2)}%/năm</strong> và trả <strong>${fmtUSD(state.payment)}/tháng</strong>, hệ thống tự động tính ra bạn cần <strong>${schedule.length} tháng</strong> để trả sạch gốc và lãi.`;
+            } else if (state.targetField === 'payment') {
+                heroLabel.textContent = state.method === 'annuity' ? 'TIỀN TRẢ MỖI THÁNG (TỰ ĐỘNG TÍNH)' : 'TIỀN TRẢ THÁNG ĐẦU (TỰ ĐỘNG TÍNH)';
+                heroValue.textContent = `${fmtUSD(firstRow.payment)}/tháng`;
+                heroSub.textContent = state.method === 'annuity'
+                    ? `Cố định suốt ${schedule.length} tháng (Tháng đầu: Gốc ${fmtUSD(firstRow.principal)} + Lãi ${fmtUSD(firstRow.interest)})`
+                    : `Giảm dần mỗi tháng về ${fmtUSD(lastRow.payment)} ở tháng thứ ${schedule.length}`;
+                formulaExp.innerHTML = `Để trả hết khoản vay <strong>${fmtUSD(state.principal)}</strong> trong đúng <strong>${schedule.length} tháng</strong> ở mức lãi <strong>${roundInput(state.rate, 2)}%/năm</strong>, mỗi tháng bạn cần thanh toán <strong>${fmtUSD(firstRow.payment)}</strong>.`;
+            } else if (state.targetField === 'principal') {
+                heroLabel.textContent = 'KHOẢN VAY TỐI ĐA (TỰ ĐỘNG TÍNH)';
+                heroValue.textContent = fmtUSD(state.principal);
+                heroSub.textContent = `Dựa trên khả năng trả ${fmtUSD(firstRow.payment)}/tháng trong ${schedule.length} tháng`;
+                formulaExp.innerHTML = `Với khả năng chi trả <strong>${fmtUSD(firstRow.payment)}/tháng</strong> trong <strong>${schedule.length} tháng</strong> (lãi suất <strong>${roundInput(state.rate, 2)}%/năm</strong>), số vốn tối đa bạn có thể vay là <strong>${fmtUSD(state.principal)}</strong>.`;
+            } else if (state.targetField === 'rate') {
+                heroLabel.textContent = 'LÃI SUẤT TƯƠNG ỨNG (TỰ ĐỘNG TÍNH)';
+                heroValue.textContent = `${roundInput(state.rate, 2)}% / năm`;
+                heroSub.textContent = `Tương đương ${(state.rate / 12).toFixed(3)}% / tháng trên dư nợ giảm dần`;
+                formulaExp.innerHTML = `Với khoản vay <strong>${fmtUSD(state.principal)}</strong> trả trong <strong>${schedule.length} tháng</strong> (mức trả <strong>${fmtUSD(firstRow.payment)}/tháng</strong>), lãi suất thực tế là <strong>${roundInput(state.rate, 2)}%/năm</strong>.`;
+            }
+
+            // Update Summary Cards
+            document.getElementById('summary-total-interest').textContent = fmtUSD(totalInterest);
+            document.getElementById('interest-ratio-badge').textContent = `+${interestRatio.toFixed(2)}% so với gốc`;
+            document.getElementById('summary-interest-range').textContent = `Lãi tháng đầu: ${fmtUSD(firstRow.interest)} • Tháng cuối: ${fmtUSD(lastRow.interest)}`;
+
+            document.getElementById('summary-total-payment').textContent = fmtUSD(totalPayment);
+            const principalPct = totalPayment > 0 ? (totalPrincipal / totalPayment) * 100 : 100;
+            const interestPct = 100 - principalPct;
+            document.getElementById('bar-principal').style.width = `${principalPct.toFixed(1)}%`;
+            document.getElementById('bar-interest').style.width = `${interestPct.toFixed(1)}%`;
+            document.getElementById('bar-principal-label').textContent = `Gốc: ${principalPct.toFixed(1)}% (${fmtUSD(totalPrincipal)})`;
+            document.getElementById('bar-interest-label').textContent = `Lãi: ${interestPct.toFixed(1)}% (${fmtUSD(totalInterest)})`;
+
+            if (state.method === 'equal_principal') {
+                document.getElementById('summary-monthly-range').textContent = `${fmtUSD(firstRow.payment)} → ${fmtUSD(lastRow.payment)}`;
+                document.getElementById('summary-final-month-note').textContent = `Gốc trả đều ${fmtUSD(firstRow.principal)}/tháng • Lãi giảm dần mỗi tháng`;
+            } else {
+                document.getElementById('summary-monthly-range').textContent = `${fmtUSD(firstRow.payment)} / tháng`;
+                document.getElementById('summary-final-month-note').textContent = Math.abs(lastRow.payment - firstRow.payment) > 0.05
+                    ? `Kỳ cuối (tháng ${schedule.length}) chỉ cần trả nốt ${fmtUSD(lastRow.payment)}`
+                    : `Trả cố định đều đặn suốt ${schedule.length} tháng`;
+            }
+
+            document.getElementById('table-count-badge').textContent = `${schedule.length} tháng`;
+
+            // Populate Table Rows
+            const tbody = document.getElementById('schedule-tbody');
+            let rowsHTML = '';
+            for (let i = 0; i < schedule.length; i++) {
+                const row = schedule[i];
+                const isLast = i === schedule.length - 1;
+                rowsHTML += `
+                    <tr class="hover:bg-indigo-50/40 dark:hover:bg-slate-800/60 transition ${isLast ? 'bg-emerald-50/40 dark:bg-emerald-950/20 font-semibold' : ''}">
+                        <td class="py-2.5 px-4 text-center font-semibold text-slate-600 dark:text-slate-400">
+                            ${row.month}
+                        </td>
+                        <td class="py-2.5 px-4 text-right font-mono text-slate-700 dark:text-slate-300">
+                            ${fmtUSD(row.startBalance)}
+                        </td>
+                        <td class="py-2.5 px-4 text-right font-mono font-bold text-slate-900 dark:text-white">
+                            ${fmtUSD(row.payment)}
+                        </td>
+                        <td class="py-2.5 px-4 text-right font-mono text-emerald-600 dark:text-emerald-400">
+                            ${fmtUSD(row.principal)}
+                        </td>
+                        <td class="py-2.5 px-4 text-right font-mono text-amber-600 dark:text-amber-400">
+                            ${fmtUSD(row.interest)}
+                        </td>
+                        <td class="py-2.5 px-4 text-right font-mono text-slate-500 dark:text-slate-400">
+                            ${fmtUSD(row.cumulativeInterest)}
+                        </td>
+                        <td class="py-2.5 px-4 text-right font-mono font-semibold text-indigo-600 dark:text-indigo-400">
+                            ${fmtUSD(row.endBalance)}
+                        </td>
+                    </tr>
+                `;
+            }
+            tbody.innerHTML = rowsHTML;
+
+            // Populate Footer Totals
+            document.getElementById('schedule-tfoot').innerHTML = `
+                <tr>
+                    <td class="py-3 px-4 text-center">TỔNG</td>
+                    <td class="py-3 px-4 text-right text-slate-400">—</td>
+                    <td class="py-3 px-4 text-right font-mono text-indigo-600 dark:text-indigo-400">${fmtUSD(totalPayment)}</td>
+                    <td class="py-3 px-4 text-right font-mono text-emerald-600 dark:text-emerald-400">${fmtUSD(totalPrincipal)}</td>
+                    <td class="py-3 px-4 text-right font-mono text-amber-600 dark:text-amber-400">${fmtUSD(totalInterest)}</td>
+                    <td class="py-3 px-4 text-right font-mono text-amber-600 dark:text-amber-400">${fmtUSD(totalInterest)}</td>
+                    <td class="py-3 px-4 text-right font-mono text-emerald-600 dark:text-emerald-400">$0.00</td>
+                </tr>
+            `;
+        }
+
+        // ============================================================================
+        // INTERACTIVE CANVAS CHART
+        // ============================================================================
+        const canvas = document.getElementById('loanChart');
+        const ctx = canvas.getContext('2d');
+        const tooltip = document.getElementById('chartTooltip');
+
+        function drawChart(hoverMonthIndex = null) {
+            const parent = canvas.parentElement;
+            const dpr = window.devicePixelRatio || 1;
+            const width = parent.clientWidth;
+            const height = parent.clientHeight;
+
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+            ctx.clearRect(0, 0, width, height);
+
+            const schedule = state.schedule;
+            if (!schedule || schedule.length === 0) {
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '13px Inter, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Chưa có dữ liệu biểu đồ khả dụng', width / 2, height / 2);
+                return;
+            }
+
+            const isDark = document.documentElement.classList.contains('dark');
+            const gridColor = isDark ? 'rgba(148, 163, 184, 0.12)' : 'rgba(148, 163, 184, 0.22)';
+            const textColor = isDark ? '#94a3b8' : '#64748b';
+
+            const padLeft = 62;
+            const padRight = 20;
+            const padTop = 18;
+            const padBottom = 30;
+            const plotW = width - padLeft - padRight;
+            const plotH = height - padTop - padBottom;
+
+            const maxVal = Math.max(
+                state.principal,
+                schedule[schedule.length - 1].cumulativePrincipal,
+                schedule[schedule.length - 1].cumulativeInterest,
+                100
+            );
+
+            // Draw horizontal gridlines & Y labels
+            const yTicks = 4;
+            ctx.font = '11px Inter, sans-serif';
+            ctx.textAlign = 'right';
+            for (let i = 0; i <= yTicks; i++) {
+                const ratio = i / yTicks;
+                const y = padTop + plotH - ratio * plotH;
+                const val = ratio * maxVal;
+
+                ctx.strokeStyle = gridColor;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(padLeft, y);
+                ctx.lineTo(width - padRight, y);
+                ctx.stroke();
+
+                ctx.fillStyle = textColor;
+                const label = val >= 1000 ? '$' + (val / 1000).toFixed(val % 1000 === 0 ? 0 : 1) + 'k' : '$' + Math.round(val);
+                ctx.fillText(label, padLeft - 8, y + 4);
+            }
+
+            // Prepare points (include month 0 starting state)
+            const points = [
+                {
+                    month: 0,
+                    endBalance: state.principal,
+                    cumulativePrincipal: 0,
+                    cumulativeInterest: 0,
+                    interest: 0,
+                    payment: 0
+                },
+                ...schedule
+            ];
+
+            const getX = (idx) => padLeft + (idx / Math.max(1, points.length - 1)) * plotW;
+            const getY = (val) => padTop + plotH - (val / maxVal) * plotH;
+
+            // X-axis labels
+            ctx.textAlign = 'center';
+            ctx.fillStyle = textColor;
+            const step = Math.max(1, Math.ceil((points.length - 1) / 8));
+            for (let i = 0; i < points.length; i += step) {
+                const x = getX(i);
+                ctx.fillText(`T${points[i].month}`, x, height - 8);
+            }
+            if ((points.length - 1) % step !== 0) {
+                ctx.fillText(`T${points[points.length - 1].month}`, getX(points.length - 1), height - 8);
+            }
+
+            // Helper to draw smooth line + fill area
+            function drawSeries(key, strokeColor, fillTopColor, fillBottomColor) {
+                ctx.beginPath();
+                points.forEach((pt, idx) => {
+                    const x = getX(idx);
+                    const y = getY(pt[key]);
+                    if (idx === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.strokeStyle = strokeColor;
+                ctx.lineWidth = 2.5;
+                ctx.stroke();
+
+                // Gradient Fill
+                const grad = ctx.createLinearGradient(0, padTop, 0, padTop + plotH);
+                grad.addColorStop(0, fillTopColor);
+                grad.addColorStop(1, fillBottomColor);
+                ctx.lineTo(getX(points.length - 1), padTop + plotH);
+                ctx.lineTo(getX(0), padTop + plotH);
+                ctx.closePath();
+                ctx.fillStyle = grad;
+                ctx.fill();
+            }
+
+            // 1. Remaining Balance (Indigo)
+            drawSeries('endBalance', '#6366f1', 'rgba(99, 102, 241, 0.25)', 'rgba(99, 102, 241, 0.0)');
+            // 2. Cumulative Principal Paid (Emerald)
+            drawSeries('cumulativePrincipal', '#10b981', 'rgba(16, 185, 129, 0.18)', 'rgba(16, 185, 129, 0.0)');
+            // 3. Cumulative Interest Paid (Amber)
+            drawSeries('cumulativeInterest', '#f59e0b', 'rgba(245, 158, 11, 0.22)', 'rgba(245, 158, 11, 0.0)');
+
+            // Hover indicator line & dots
+            if (hoverMonthIndex !== null && hoverMonthIndex >= 0 && hoverMonthIndex < points.length) {
+                const pt = points[hoverMonthIndex];
+                const x = getX(hoverMonthIndex);
+
+                ctx.strokeStyle = isDark ? 'rgba(255,255,255,0.35)' : 'rgba(15,23,42,0.3)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([4, 4]);
+                ctx.beginPath();
+                ctx.moveTo(x, padTop);
+                ctx.lineTo(x, padTop + plotH);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                const seriesDots = [
+                    { val: pt.endBalance, color: '#6366f1' },
+                    { val: pt.cumulativePrincipal, color: '#10b981' },
+                    { val: pt.cumulativeInterest, color: '#f59e0b' }
+                ];
+                seriesDots.forEach(d => {
+                    const y = getY(d.val);
+                    ctx.beginPath();
+                    ctx.arc(x, y, 4.5, 0, Math.PI * 2);
+                    ctx.fillStyle = d.color;
+                    ctx.fill();
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.stroke();
+                });
+            }
+        }
+
+        // Mouse & Touch interactivity for Chart
+        function handleChartPointer(e) {
+            const schedule = state.schedule;
+            if (!schedule || schedule.length === 0) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const relX = clientX - rect.left;
+
+            const padLeft = 62;
+            const padRight = 20;
+            const plotW = rect.width - padLeft - padRight;
+            const totalPoints = schedule.length + 1;
+
+            let ratio = (relX - padLeft) / Math.max(1, plotW);
+            ratio = Math.max(0, Math.min(1, ratio));
+            const idx = Math.round(ratio * (totalPoints - 1));
+
+            drawChart(idx);
+
+            const pt = idx === 0
+                ? { month: 0, endBalance: state.principal, cumulativePrincipal: 0, cumulativeInterest: 0, interest: 0, payment: 0 }
+                : schedule[idx - 1];
+
+            tooltip.classList.remove('hidden');
+            tooltip.innerHTML = `
+                <div class="font-bold text-indigo-300 border-b border-slate-700 pb-1 mb-1.5 flex justify-between">
+                    <span>${pt.month === 0 ? 'Thời điểm ban đầu' : 'Tháng thứ ' + pt.month}</span>
+                    <span>${pt.month > 0 ? fmtUSD(pt.payment) : ''}</span>
+                </div>
+                <div class="space-y-1 text-[11px]">
+                    <div class="flex justify-between gap-3">
+                        <span class="text-slate-300">Dư nợ còn lại:</span>
+                        <span class="font-mono font-bold text-indigo-400">${fmtUSD(pt.endBalance)}</span>
+                    </div>
+                    <div class="flex justify-between gap-3">
+                        <span class="text-slate-300">Gốc đã trả:</span>
+                        <span class="font-mono font-bold text-emerald-400">${fmtUSD(pt.cumulativePrincipal)}</span>
+                    </div>
+                    <div class="flex justify-between gap-3">
+                        <span class="text-slate-300">Lãi tháng này:</span>
+                        <span class="font-mono font-bold text-amber-300">${fmtUSD(pt.interest)}</span>
+                    </div>
+                    <div class="flex justify-between gap-3">
+                        <span class="text-slate-300">Lãi tích lũy:</span>
+                        <span class="font-mono font-bold text-amber-400">${fmtUSD(pt.cumulativeInterest)}</span>
+                    </div>
+                </div>
+            `;
+
+            const tooltipWidth = 200;
+            let leftPos = relX + 16;
+            if (leftPos + tooltipWidth > rect.width) {
+                leftPos = relX - tooltipWidth - 16;
+            }
+            tooltip.style.left = `${Math.max(8, leftPos)}px`;
+            tooltip.style.top = `16px`;
+        }
+
+        canvas.addEventListener('mousemove', handleChartPointer);
+        canvas.addEventListener('touchstart', handleChartPointer, { passive: true });
+        canvas.addEventListener('touchmove', handleChartPointer, { passive: true });
+        canvas.addEventListener('mouseleave', () => {
+            tooltip.classList.add('hidden');
+            drawChart(null);
+        });
+
+        window.addEventListener('resize', () => drawChart(null));
+
+        // ============================================================================
+        // EXPORT CSV & CLIPBOARD UTILITIES
+        // ============================================================================
+        function exportCSV() {
+            if (!state.schedule || state.schedule.length === 0) return;
+
+            const headers = ['Thang', 'Du No Dau Ky (USD)', 'Tong Tra Trong Thang (USD)', 'Phan Tra Goc (USD)', 'Phan Tra Lai (USD)', 'Lai Tich Luy (USD)', 'Du No Cuoi Ky (USD)'];
+            const rows = state.schedule.map(r => [
+                r.month,
+                r.startBalance.toFixed(2),
+                r.payment.toFixed(2),
+                r.principal.toFixed(2),
+                r.interest.toFixed(2),
+                r.cumulativeInterest.toFixed(2),
+                r.endBalance.toFixed(2)
+            ]);
+
+            const csvContent = 'data:text/csv;charset=utf-8,\uFEFF'
+                + headers.join(',') + '\n'
+                + rows.map(e => e.join(',')).join('\n');
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement('a');
+            link.setAttribute('href', encodedUri);
+            link.setAttribute('download', `lich_tra_no_${Math.round(state.principal)}USD_${state.months}thang.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast('Đã tải xuống bảng CSV!');
+        }
+
+        function copyTableSummary() {
+            if (!state.schedule || state.schedule.length === 0) return;
+            const last = state.schedule[state.schedule.length - 1];
+            const first = state.schedule[0];
+            const summaryText = `TÓM TẮT KHOẢN VAY:\n- Khoản vay: ${fmtUSD(state.principal)}\n- Lãi suất: ${roundInput(state.rate, 2)}%/năm (Dư nợ giảm dần)\n- Mức trả hàng tháng: ${fmtUSD(first.payment)}\n- Thời gian hoàn thành: ${state.schedule.length} tháng\n- Tổng tiền lãi: ${fmtUSD(last.cumulativeInterest)}\n- Tổng thanh toán: ${fmtUSD(last.cumulativePrincipal + last.cumulativeInterest)}`;
+
+            const tempArea = document.createElement('textarea');
+            tempArea.value = summaryText;
+            document.body.appendChild(tempArea);
+            tempArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempArea);
+            showToast('Đã sao chép tóm tắt khoản vay vào bộ nhớ tạm!');
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-msg').textContent = msg;
+            toast.classList.remove('hidden');
+            clearTimeout(window.toastTimer);
+            window.toastTimer = setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+
+        // Theme Toggle (Light / Dark)
+        function toggleTheme() {
+            const html = document.documentElement;
+            const icon = document.getElementById('themeIcon');
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                icon.className = 'fa-solid fa-moon text-sm';
+            } else {
+                html.classList.add('dark');
+                icon.className = 'fa-solid fa-sun text-sm text-amber-400';
+            }
+            drawChart(null);
+        }
+
+        // Initialize on Window Load
+        window.onload = function () {
+            setLoanMethod('annuity');
+            setTargetField('months');
+        };
+    </script>
+</body>
+</html>
